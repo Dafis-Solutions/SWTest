@@ -2,131 +2,142 @@
 <html lang="fr" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DAFIS SOLUTIONS - Facture</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- html2pdf -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         @media print {
-            body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0 !important; }
             .no-print { display: none !important; }
             @page { size: A4; margin: 0; }
-            #invoice-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 100vh !important; }
+            #invoice-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; min-height: 100vh !important; }
+            .print-flex-row { flex-direction: row !important; }
+            .print-w-7-12 { width: 58.333333% !important; }
+            .print-w-5-12 { width: 41.666667% !important; }
+            .print-items-end { items-end !important; }
+            .print-text-right { text-align: right !important; }
         }
+        
+        /* تعديل حجم الورقة ليتناسب مع الهاتف */
         .a4-sheet {
-            width: 210mm;
-            min-height: 297mm;
+            width: 100%;
+            max-width: 210mm;
             background: white;
             margin: 0 auto;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
+        
+        /* فقط على الشاشات الكبيرة تأخذ طول الـ A4 الثابت */
+        @media (min-width: 768px) {
+            .a4-sheet {
+                min-height: 297mm;
+            }
+        }
+
         input, textarea { background: transparent; outline: none; }
         textarea { resize: none; overflow: hidden; }
+        
+        /* تحسين التمرير للجداول على الهاتف */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 </head>
-<body class="bg-gray-100 py-8 font-sans text-gray-900 flex flex-col items-center" onload="initApp()">
+<body class="bg-gray-100 py-4 md:py-8 font-sans text-gray-900 flex flex-col items-center px-2 md:px-0" onload="initApp()">
 
-    <!-- شريط الأدوات العلوي -->
-    <div class="no-print bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center w-full max-w-4xl justify-between border border-gray-200 sticky top-4 z-40">
-        <div class="flex flex-wrap gap-3 items-center">
-            <button onclick="toggleCatalog(true)" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
-                <i class="fas fa-database"></i> قاعدة بيانات السلع
+    <div class="no-print bg-white p-3 md:p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center w-full max-w-4xl justify-between border border-gray-200 sticky top-2 md:top-4 z-40">
+        <div class="flex flex-wrap gap-2 justify-center w-full md:w-auto">
+            <button onclick="toggleCatalog(true)" class="flex-1 md:flex-none items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
+                <i class="fas fa-database"></i> الكتالوج
             </button>
-            <button onclick="addInvoiceItem()" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
+            <button onclick="addInvoiceItem()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
                 <i class="fas fa-plus"></i> سطر جديد
             </button>
         </div>
 
-        <div class="flex flex-wrap gap-3 items-center">
-            <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-200 h-[44px]" dir="rtl">
-                <label class="font-semibold text-gray-700 text-sm">TVA (%):</label>
-                <input type="number" id="tvaInput" value="19" oninput="calculateTotals()" class="w-16 border-b border-gray-300 text-center font-bold text-red-600 focus:border-red-500">
+        <div class="flex flex-wrap gap-2 justify-center w-full md:w-auto items-center">
+            <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-200 h-[40px] md:h-[44px]" dir="rtl">
+                <label class="font-semibold text-gray-700 text-xs md:text-sm">TVA (%):</label>
+                <input type="number" id="tvaInput" value="19" oninput="calculateTotals()" class="w-12 md:w-16 border-b border-gray-300 text-center font-bold text-red-600 focus:border-red-500 bg-transparent">
             </div>
-            <button onclick="downloadPDF()" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
-                <i class="fas fa-download"></i> تحميل PDF
+            <button onclick="downloadPDF()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
+                <i class="fas fa-download"></i> PDF
             </button>
-            <button onclick="window.print()" class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
-                <i class="fas fa-print"></i> طباعة (A4)
+            <button onclick="window.print()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base hidden md:flex">
+                <i class="fas fa-print"></i> طباعة
             </button>
         </div>
     </div>
 
-    <!-- نافذة الكتالوج -->
-    <div id="catalogModal" class="fixed inset-0 z-50 bg-black/60 items-center justify-center p-4 backdrop-blur-sm hidden no-print flex">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fas fa-database"></i> الكتالوج (قاعدة البيانات)
+    <div id="catalogModal" class="fixed inset-0 z-50 bg-black/60 items-center justify-center p-2 md:p-4 backdrop-blur-sm hidden no-print flex">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-gray-800 text-white px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
+                <h2 class="text-lg md:text-xl font-bold flex items-center gap-2">
+                    <i class="fas fa-database"></i> الكتالوج
                 </h2>
-                <button onclick="toggleCatalog(false)" class="text-gray-300 hover:text-white text-xl">
+                <button onclick="toggleCatalog(false)" class="text-gray-300 hover:text-white text-xl p-1">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" dir="rtl">
-                <!-- فورم إضافة وتعديل السلعة -->
-                <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6 shadow-sm">
-                    <h3 id="formTitle" class="text-sm font-bold text-gray-700 mb-3">إضافة سلعة جديدة للقاعدة:</h3>
-                    <div class="flex gap-3">
-                        <input type="text" id="newCatName" placeholder="الاسم (Désignation)..." class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500" dir="ltr">
-                        <input type="number" id="newCatPrice" placeholder="السعر (Prix)..." class="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500" dir="ltr">
-                        <button id="btnSaveCatalog" onclick="saveOrUpdateCatalog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
-                            حفظ
-                        </button>
-                        <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
-                            إلغاء
-                        </button>
+            <div class="p-3 md:p-6 overflow-y-auto flex-1 bg-gray-50" dir="rtl">
+                <div class="bg-white p-3 md:p-4 rounded-lg border border-gray-200 mb-4 md:mb-6 shadow-sm">
+                    <h3 id="formTitle" class="text-sm font-bold text-gray-700 mb-2 md:mb-3">إضافة سلعة:</h3>
+                    <div class="flex flex-col md:flex-row gap-2 md:gap-3">
+                        <input type="text" id="newCatName" placeholder="Désignation..." class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500 w-full" dir="ltr">
+                        <div class="flex gap-2">
+                            <input type="number" id="newCatPrice" placeholder="Prix..." class="flex-1 md:w-32 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500" dir="ltr">
+                            <button id="btnSaveCatalog" onclick="saveOrUpdateCatalog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
+                                حفظ
+                            </button>
+                            <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
+                                إلغاء
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <h3 class="text-sm font-bold text-gray-700 mb-3">السلع المحفوظة (انقر على العناوين للترتيب):</h3>
-                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm" dir="ltr">
-                    <table class="w-full text-left text-sm">
+                <div class="table-container bg-white border border-gray-200 rounded-lg shadow-sm" dir="ltr">
+                    <table class="w-full text-left text-xs md:text-sm min-w-[400px]">
                         <thead class="bg-gray-100 border-b border-gray-200 select-none">
                             <tr>
-                                <th onclick="sortCatalog('name')" class="py-2 px-4 font-semibold text-gray-600 w-7/12 cursor-pointer hover:bg-gray-200 transition-colors">
+                                <th onclick="sortCatalog('name')" class="py-2 px-3 md:px-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-200 transition-colors">
                                     Désignation <i id="sortIconName" class="fas fa-sort ml-1 text-gray-400"></i>
                                 </th>
-                                <th onclick="sortCatalog('price')" class="py-2 px-4 font-semibold text-gray-600 w-3/12 cursor-pointer hover:bg-gray-200 transition-colors">
-                                    Prix U. (DA) <i id="sortIconPrice" class="fas fa-sort ml-1 text-gray-400"></i>
+                                <th onclick="sortCatalog('price')" class="py-2 px-3 md:px-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-200 transition-colors">
+                                    Prix (DA) <i id="sortIconPrice" class="fas fa-sort ml-1 text-gray-400"></i>
                                 </th>
-                                <th class="py-2 px-4 font-semibold text-gray-600 text-center w-2/12">Actions</th>
+                                <th class="py-2 px-3 md:px-4 font-semibold text-gray-600 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="catalogTableBody">
-                            <!-- سيتم حقن السلع هنا -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- حاوية الفاتورة (A4) -->
-    <div class="a4-sheet relative overflow-hidden text-[13px]" id="invoice-container">
-        <!-- خلفية مائية -->
+    <div class="a4-sheet relative overflow-hidden text-[12px] md:text-[13px]" id="invoice-container">
         <div class="absolute inset-0 opacity-[0.03] pointer-events-none flex items-center justify-center">
-            <i class="fas fa-shield-alt text-[400px]"></i>
+            <i class="fas fa-shield-alt text-[200px] md:text-[400px]"></i>
         </div>
 
-        <div class="p-10 relative z-10 flex flex-col h-full">
+        <div class="p-4 md:p-10 relative z-10 flex flex-col h-full">
             
-            <!-- رأس الفاتورة المعدل -->
-            <div class="flex justify-between border-b-2 border-red-600 pb-6 mb-6">
+            <div class="flex flex-col md:flex-row print-flex-row justify-between border-b-2 border-red-600 pb-4 md:pb-6 mb-4 md:mb-6 gap-4">
                 
-                <!-- القسم الأيسر: اللوغو ومعلومات الشركة -->
-                <div class="flex flex-col justify-between">
-                    <!-- اللوغو (يرجى التأكد من وجود ملف logo.jpg في نفس المجلد) -->
-                    <img src="logo.jpg" alt="DAFIS Solutions Logo" class="w-36 h-auto object-contain mb-4" onerror="this.onerror=null; this.src='https://placehold.co/150x150/ffffff/e50000?text=DAFIS+LOGO';"/>
+                <div class="flex flex-col justify-between items-center md:items-start print-items-start">
+                    <img src="logo.jpg" alt="DAFIS Solutions Logo" class="w-28 md:w-36 h-auto object-contain mb-3 md:mb-4" onerror="this.onerror=null; this.src='https://placehold.co/150x150/ffffff/e50000?text=DAFIS+LOGO';"/>
                     
-                    <div class="text-gray-600 font-semibold text-xs flex flex-col gap-2">
+                    <div class="text-gray-600 font-semibold text-[10px] md:text-xs flex flex-col gap-1.5 items-center md:items-start print-items-start">
                         <div class="flex items-center gap-2">
                             <i class="fas fa-shield-alt text-red-600"></i> AGRÉE PAR L'ÉTAT
                         </div>
@@ -136,123 +147,119 @@
                     </div>
                 </div>
 
-                <!-- القسم الأيمن: تفاصيل الفاتورة -->
-                <div class="flex flex-col justify-between items-end">
-                    <!-- العنوان ورقم الفاتورة في الأعلى -->
-                    <div class="flex flex-col items-end">
-                        <div class="flex items-center gap-4 mb-2">
-                            <h1 class="text-3xl font-black text-gray-800 uppercase tracking-wider m-0">Facture Proforma</h1>
+                <div class="flex flex-col justify-between items-center md:items-end print-items-end mt-2 md:mt-0">
+                    <div class="flex flex-col items-center md:items-end print-items-end mb-4 md:mb-0">
+                        <div class="flex flex-col md:flex-row print-flex-row items-center gap-2 md:gap-4 mb-2">
+                            <h1 class="text-2xl md:text-3xl font-black text-gray-800 uppercase tracking-wider m-0 text-center md:text-right print-text-right">Facture Proforma</h1>
                             
-                            <!-- رقم الفاتورة بجانب العنوان -->
-                            <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-1 rounded-md">
-                                <span class="font-bold text-gray-600">N° :</span>
-                                <input type="text" id="invoiceNum" value="2026/001" class="text-center border-none bg-transparent focus:outline-none w-20 font-black text-red-600 text-lg p-0">
+                            <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 px-2 md:px-3 py-1 rounded-md">
+                                <span class="font-bold text-gray-600">N°:</span>
+                                <input type="text" id="invoiceNum" value="2026/001" class="text-center border-none bg-transparent focus:outline-none w-16 md:w-20 font-black text-red-600 text-base md:text-lg p-0">
                             </div>
                         </div>
-                        <div class="bg-red-600 h-1 w-16 rounded-full"></div>
+                        <div class="bg-red-600 h-1 w-12 md:w-16 rounded-full hidden md:block print:block"></div>
                     </div>
 
-                    <!-- التاريخ في الأسفل ليقابل جملة المراقبة بالفيديو -->
-                    <div class="flex items-center gap-2 mt-auto pb-0.5">
-                        <span class="font-bold text-gray-600 text-sm">DATE :</span>
-                        <input type="text" id="invoiceDate" class="text-right border-b border-dashed border-gray-400 focus:border-red-500 w-32 font-bold text-gray-800 bg-transparent">
+                    <div class="flex items-center gap-2 md:mt-auto">
+                        <span class="font-bold text-gray-600 text-xs md:text-sm">DATE :</span>
+                        <input type="text" id="invoiceDate" class="text-center md:text-right print-text-right border-b border-dashed border-gray-400 focus:border-red-500 w-24 md:w-32 font-bold text-gray-800 bg-transparent text-sm">
                     </div>
                 </div>
             </div>
 
-            <!-- العميل -->
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 flex items-center">
-                <span class="font-bold text-gray-700 w-24">CLIENT :</span>
-                <input type="text" id="clientName" placeholder="Nom du client / Entreprise..." class="flex-1 border-b border-dashed border-gray-300 focus:border-red-500 font-bold text-base text-gray-900 pb-1">
+            <div class="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200 mb-4 md:mb-6 flex flex-col md:flex-row print-flex-row items-start md:items-center gap-2 md:gap-0">
+                <span class="font-bold text-gray-700 w-full md:w-24">CLIENT :</span>
+                <input type="text" id="clientName" placeholder="Nom du client / Entreprise..." class="w-full md:flex-1 border-b border-dashed border-gray-300 focus:border-red-500 font-bold text-sm md:text-base text-gray-900 pb-1 bg-transparent">
             </div>
 
-            <!-- جدول السلع -->
-            <div class="flex-1">
-                <table class="w-full text-left border-collapse">
+            <div class="flex-1 table-container pb-2">
+                <table class="w-full text-left border-collapse min-w-[500px]">
                     <thead>
                         <tr class="bg-gray-800 text-white">
-                            <th class="py-3 px-4 font-bold border border-gray-800 w-7/12">DÉSIGNATION</th>
-                            <th class="py-3 px-4 font-bold border border-gray-800 text-center w-1/12">QNT</th>
-                            <th class="py-3 px-4 font-bold border border-gray-800 text-center w-2/12">P.U (DA)</th>
-                            <th class="py-3 px-4 font-bold border border-gray-800 text-right w-2/12">MONTANT</th>
-                            <th class="no-print w-10 border border-gray-800"></th>
+                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 w-6/12 md:w-7/12">DÉSIGNATION</th>
+                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-center w-1/12">QNT</th>
+                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-center w-2/12">P.U (DA)</th>
+                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-right w-3/12 md:w-2/12">MONTANT</th>
+                            <th class="no-print w-8 border border-gray-800"></th>
                         </tr>
                     </thead>
                     <tbody id="invoiceTableBody">
-                        <!-- سيتم حقن سطور الفاتورة هنا -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
-            <!-- المجاميع والملاحظات -->
-            <div class="flex mt-6 gap-6 items-start">
-                <div class="w-7/12 flex flex-col gap-4">
-                    <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1">Notes / Remarques :</h3>
-                        <textarea class="w-full text-gray-600 text-xs" rows="3">Consommation de cable COX : 100 DA par 1m&#10;Consommation de cable reseau : 180 DA par 1m</textarea>
+            <div class="flex flex-col-reverse md:flex-row print-flex-row mt-4 md:mt-6 gap-4 md:gap-6 items-start">
+                
+                <div class="w-full md:w-7/12 print-w-7-12 flex flex-col gap-3 md:gap-4">
+                    <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg">
+                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 text-xs md:text-sm">Notes / Remarques :</h3>
+                        <textarea class="w-full text-gray-600 text-[11px] md:text-xs bg-transparent" rows="3">Consommation de cable COX : 100 DA par 1m&#10;Consommation de cable reseau : 180 DA par 1m</textarea>
                     </div>
 
-                    <div class="border border-gray-200 p-4 rounded-lg">
-                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1">Coordonnées Bancaires :</h3>
+                    <div class="border border-gray-200 p-3 md:p-4 rounded-lg">
+                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 text-xs md:text-sm">Coordonnées Bancaires :</h3>
                         <div class="flex items-center mb-1">
-                            <span class="w-32 text-gray-500 font-semibold text-xs">Nom du compte :</span>
-                            <input type="text" placeholder="Saisir le nom..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-xs">
+                            <span class="w-24 md:w-32 text-gray-500 font-semibold text-[10px] md:text-xs">Nom :</span>
+                            <input type="text" placeholder="Saisir le nom..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-[11px] md:text-xs bg-transparent">
                         </div>
                         <div class="flex items-center">
-                            <span class="w-32 text-gray-500 font-semibold text-xs">N° de compte :</span>
-                            <input type="text" placeholder="Saisir RIB..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-xs tracking-wider">
+                            <span class="w-24 md:w-32 text-gray-500 font-semibold text-[10px] md:text-xs">N° compte :</span>
+                            <input type="text" placeholder="Saisir RIB..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-[11px] md:text-xs tracking-wider bg-transparent">
                         </div>
                     </div>
                 </div>
 
-                <div class="w-5/12 border border-gray-200 rounded-lg overflow-hidden">
-                    <table class="w-full">
+                <div class="w-full md:w-5/12 print-w-5-12 border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                    <table class="w-full text-xs md:text-[13px]">
                         <tr class="border-b border-gray-200">
-                            <td class="p-3 font-bold text-gray-700 bg-gray-50 w-1/2">SOUS-TOTAL</td>
-                            <td class="p-3 font-bold text-right text-gray-900" id="valSousTotal">0 DA</td>
+                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50 w-1/2">SOUS-TOTAL</td>
+                            <td class="p-2 md:p-3 font-bold text-right text-gray-900" id="valSousTotal">0 DA</td>
                         </tr>
                         <tr class="border-b border-gray-200" id="rowTva">
-                            <td class="p-3 font-bold text-gray-700 bg-gray-50">
-                                TVA <span id="lblTvaRate" class="bg-gray-200 text-gray-600 px-1 py-0.5 rounded text-[10px]">19%</span>
+                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50">
+                                TVA <span id="lblTvaRate" class="bg-gray-200 text-gray-600 px-1 py-0.5 rounded text-[9px] md:text-[10px]">19%</span>
                             </td>
-                            <td class="p-3 font-bold text-right text-gray-900" id="valTva">0 DA</td>
+                            <td class="p-2 md:p-3 font-bold text-right text-gray-900" id="valTva">0 DA</td>
                         </tr>
                         <tr class="border-b border-gray-200">
-                            <td class="p-3 font-bold text-gray-700 bg-gray-50">VERSEMENT</td>
-                            <td class="p-3 text-right">
-                                <input type="number" id="versementInput" value="0" oninput="calculateTotals()" class="w-20 border-b border-dashed border-gray-400 text-right font-bold text-gray-900 pr-1"> DA
+                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50">VERSEMENT</td>
+                            <td class="p-2 md:p-3 text-right">
+                                <input type="number" id="versementInput" value="0" oninput="calculateTotals()" class="w-16 md:w-20 border-b border-dashed border-gray-400 text-right font-bold text-gray-900 pr-1 bg-transparent"> DA
                             </td>
                         </tr>
                         <tr class="bg-gray-800 text-white">
-                            <td class="p-4 font-black text-base uppercase">TOTAL TTC</td>
-                            <td class="p-4 font-black text-right text-base text-red-400" id="valTotalTtc">0 DA</td>
+                            <td class="p-3 md:p-4 font-black text-sm md:text-base uppercase">TOTAL TTC</td>
+                            <td class="p-3 md:p-4 font-black text-right text-sm md:text-base text-red-400" id="valTotalTtc">0 DA</td>
                         </tr>
                         <tr class="bg-red-50" id="rowReste" style="display: none;">
-                            <td class="p-3 font-bold text-red-800 uppercase text-xs">Reste à payer</td>
-                            <td class="p-3 font-bold text-right text-red-800 text-sm" id="valReste">0 DA</td>
+                            <td class="p-2 md:p-3 font-bold text-red-800 uppercase text-[11px] md:text-xs">Reste à payer</td>
+                            <td class="p-2 md:p-3 font-bold text-right text-red-800 text-xs md:text-sm" id="valReste">0 DA</td>
                         </tr>
                     </table>
                 </div>
             </div>
 
-            <!-- ذيل الفاتورة -->
-            <div class="mt-auto pt-6 border-t-2 border-red-600 flex justify-between items-center bg-white">
-                <div class="flex gap-4 text-red-600 text-2xl">
+            <div class="mt-8 md:mt-auto pt-4 md:pt-6 border-t-2 border-red-600 flex flex-col md:flex-row print-flex-row justify-between items-center bg-white gap-4 md:gap-0">
+                <div class="flex gap-3 md:gap-4 text-red-600 text-xl md:text-2xl">
                     <i class="fas fa-video"></i>
                     <i class="fas fa-headset"></i>
                 </div>
                 
-                <div class="flex flex-col items-end gap-1 text-xs font-semibold text-gray-700">
-                    <div class="flex items-center gap-2">
-                        contact.dafisolutions@gmail.com <i class="fas fa-envelope text-red-600"></i>
+                <div class="flex flex-col items-center md:items-end print-items-end gap-1 text-[10px] md:text-xs font-semibold text-gray-700 text-center md:text-right">
+                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
+                        <span class="hidden md:inline">contact.dafisolutions@gmail.com</span>
+                        <span class="md:hidden">contact.dafisolutions@...</span>
+                        <i class="fas fa-envelope text-red-600"></i>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
                         06 59 84 96 56 / 07 95 98 33 37 <i class="fas fa-phone text-red-600"></i>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <a href="https://dafis-solutions.github.io/HOME/" target="_blank" class="hover:text-blue-600 transition-colors">https://dafis-solutions.github.io/HOME/</a> <i class="fas fa-globe text-red-600"></i>
+                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
+                        <a href="https://dafis-solutions.github.io/HOME/" target="_blank" class="hover:text-blue-600 transition-colors hidden md:inline">https://dafis-solutions.github.io/HOME/</a>
+                        <a href="https://dafis-solutions.github.io/HOME/" target="_blank" class="hover:text-blue-600 transition-colors md:hidden">Site Web Officiel</a>
+                        <i class="fas fa-globe text-red-600"></i>
                     </div>
-                    <div class="flex items-center gap-2 mt-1">
+                    <div class="flex items-center justify-center md:justify-end gap-2 mt-1 w-full">
                         Tébessa, 12004 - Algérie <i class="fas fa-map-marker-alt text-red-600"></i>
                     </div>
                 </div>
@@ -260,16 +267,12 @@
         </div>
     </div>
 
-    <!-- السكربت الخاص بالمنطق -->
     <script>
         let invoiceItems = [];
         let catalogItems = [];
-        
-        // متغيرات التعديل والترتيب للكتالوج
         let editingCatId = null;
         let currentSort = { column: null, asc: true };
 
-        // التهيئة
         function initApp() {
             const today = new Date().toLocaleDateString('fr-FR');
             document.getElementById('invoiceDate').value = today;
@@ -294,7 +297,6 @@
             renderInvoiceTable();
         }
 
-        // --- وظائف الفاتورة ---
         function addInvoiceItem(name = '', qty = 1, price = 0) {
             invoiceItems.push({ id: Date.now() + Math.random(), name, qty, price });
             renderInvoiceTable();
@@ -330,33 +332,33 @@
             tbody.innerHTML = '';
 
             if(invoiceItems.length === 0) {
-                tbody.innerHTML = `<tr class="no-print"><td colspan="5" class="text-center py-8 text-gray-400 italic border border-gray-200">الفاتورة فارغة. انقر على "قاعدة بيانات السلع" أو "سطر جديد" للإضافة.</td></tr>`;
+                tbody.innerHTML = `<tr class="no-print"><td colspan="5" class="text-center py-6 text-gray-400 italic border border-gray-200 text-xs md:text-sm">الفاتورة فارغة. أضف سلعاً من الكتالوج.</td></tr>`;
             } else {
                 invoiceItems.forEach((item, index) => {
                     const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                     const tr = document.createElement('tr');
                     tr.className = bgClass;
                     tr.innerHTML = `
-                        <td class="border border-gray-200 py-2 px-4">
-                            <textarea rows="1" oninput="updateItem(${item.id}, 'name', this)" class="w-full font-medium text-gray-800" placeholder="Description...">${item.name}</textarea>
+                        <td class="border border-gray-200 py-1.5 md:py-2 px-2 md:px-4">
+                            <textarea rows="1" oninput="updateItem(${item.id}, 'name', this)" class="w-full font-medium text-gray-800 text-xs md:text-sm bg-transparent" placeholder="Description...">${item.name}</textarea>
                         </td>
-                        <td class="border border-gray-200 py-2 px-4">
-                            <input type="number" oninput="updateItem(${item.id}, 'qty', this)" value="${item.qty}" class="w-full text-center font-semibold text-gray-800">
+                        <td class="border border-gray-200 py-1.5 md:py-2 px-1 md:px-4">
+                            <input type="number" oninput="updateItem(${item.id}, 'qty', this)" value="${item.qty}" class="w-full text-center font-semibold text-gray-800 text-xs md:text-sm bg-transparent">
                         </td>
-                        <td class="border border-gray-200 py-2 px-4">
-                            <input type="number" oninput="updateItem(${item.id}, 'price', this)" value="${item.price}" class="w-full text-center font-semibold text-gray-800">
+                        <td class="border border-gray-200 py-1.5 md:py-2 px-1 md:px-4">
+                            <input type="number" oninput="updateItem(${item.id}, 'price', this)" value="${item.price}" class="w-full text-center font-semibold text-gray-800 text-xs md:text-sm bg-transparent">
                         </td>
-                        <td class="border border-gray-200 py-2 px-4 text-right font-bold text-gray-900 bg-gray-100/50 item-total">
+                        <td class="border border-gray-200 py-1.5 md:py-2 px-2 md:px-4 text-right font-bold text-gray-900 bg-gray-100/50 item-total text-xs md:text-sm whitespace-nowrap">
                             ${(item.qty * item.price).toLocaleString('fr-FR')}
                         </td>
-                        <td class="no-print text-center px-2 border-b border-gray-200">
+                        <td class="no-print text-center px-1 md:px-2 border-b border-gray-200">
                             <button onclick="removeInvoiceItem(${item.id})" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                     
                     const textarea = tr.querySelector('textarea');
-                    textarea.style.height = textarea.scrollHeight + 'px';
+                    setTimeout(() => { textarea.style.height = textarea.scrollHeight + 'px'; }, 10);
                 });
             }
             calculateTotals();
@@ -381,12 +383,11 @@
             document.getElementById('rowReste').style.display = versement > 0 ? 'table-row' : 'none';
         }
 
-        // --- وظائف الكتالوج المتقدمة (ترتيب + تعديل + إدراج) ---
         function toggleCatalog(show) {
             const modal = document.getElementById('catalogModal');
             if(show) {
                 modal.classList.remove('hidden');
-                cancelEdit(); // تنظيف حقول الإدخال عند الفتح
+                cancelEdit();
             } else {
                 modal.classList.add('hidden');
             }
@@ -396,10 +397,9 @@
             localStorage.setItem('dafis_catalog', JSON.stringify(catalogItems));
         }
 
-        // دالة ترتيب الكتالوج
         function sortCatalog(column) {
             if (currentSort.column === column) {
-                currentSort.asc = !currentSort.asc; // تغيير الاتجاه
+                currentSort.asc = !currentSort.asc;
             } else {
                 currentSort.column = column;
                 currentSort.asc = true;
@@ -417,7 +417,6 @@
                 return 0;
             });
 
-            // تحديث الأيقونات في الجدول
             const iconName = document.getElementById('sortIconName');
             const iconPrice = document.getElementById('sortIconPrice');
             
@@ -432,22 +431,22 @@
             tbody.innerHTML = '';
             
             if(catalogItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">القاعدة فارغة حالياً.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500 text-sm">القاعدة فارغة حالياً.</td></tr>`;
             } else {
                 catalogItems.forEach(item => {
                     const tr = document.createElement('tr');
                     tr.className = 'border-b border-gray-100 hover:bg-gray-50 transition-colors';
                     tr.innerHTML = `
-                        <td class="py-2 px-4 font-medium text-gray-800">${item.name}</td>
-                        <td class="py-2 px-4 font-bold text-gray-600">${item.price.toLocaleString('fr-FR')}</td>
-                        <td class="py-2 px-4 text-center flex justify-center gap-1.5">
-                            <button onclick="insertFromCatalog(${item.id})" class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-1.5 rounded-md transition-colors" title="إدراج في الفاتورة">
+                        <td class="py-2 px-3 md:px-4 font-medium text-gray-800 whitespace-nowrap md:whitespace-normal">${item.name}</td>
+                        <td class="py-2 px-3 md:px-4 font-bold text-gray-600 whitespace-nowrap">${item.price.toLocaleString('fr-FR')}</td>
+                        <td class="py-2 px-2 md:px-4 text-center flex justify-center gap-1">
+                            <button onclick="insertFromCatalog(${item.id})" class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-1.5 md:p-2 rounded-md transition-colors" title="إدراج في الفاتورة">
                                 <i class="fas fa-plus"></i>
                             </button>
-                            <button onclick="editCatalogItem(${item.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 p-1.5 rounded-md transition-colors" title="تعديل السلعة">
+                            <button onclick="editCatalogItem(${item.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 p-1.5 md:p-2 rounded-md transition-colors" title="تعديل السلعة">
                                 <i class="fas fa-pen"></i>
                             </button>
-                            <button onclick="deleteFromCatalog(${item.id})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-md transition-colors" title="حذف من القاعدة">
+                            <button onclick="deleteFromCatalog(${item.id})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 md:p-2 rounded-md transition-colors" title="حذف من القاعدة">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -457,7 +456,6 @@
             }
         }
 
-        // دالة تجهيز السلعة للتعديل
         function editCatalogItem(id) {
             const item = catalogItems.find(i => i.id === id);
             if(item) {
@@ -465,10 +463,9 @@
                 document.getElementById('newCatPrice').value = item.price;
                 editingCatId = id;
                 
-                // تغيير واجهة الفورم العلوي ليصبح للتعديل
                 document.getElementById('formTitle').innerText = 'تعديل السلعة الحالية:';
                 const btnSave = document.getElementById('btnSaveCatalog');
-                btnSave.innerText = 'تحديث التعديل';
+                btnSave.innerText = 'تحديث';
                 btnSave.classList.replace('bg-blue-600', 'bg-emerald-600');
                 btnSave.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-700');
                 
@@ -477,13 +474,12 @@
             }
         }
 
-        // دالة إلغاء التعديل والعودة لوضع "الإضافة"
         function cancelEdit() {
             editingCatId = null;
             document.getElementById('newCatName').value = '';
             document.getElementById('newCatPrice').value = '';
             
-            document.getElementById('formTitle').innerText = 'إضافة سلعة جديدة للقاعدة:';
+            document.getElementById('formTitle').innerText = 'إضافة سلعة:';
             const btnSave = document.getElementById('btnSaveCatalog');
             btnSave.innerText = 'حفظ';
             btnSave.classList.replace('bg-emerald-600', 'bg-blue-600');
@@ -492,7 +488,6 @@
             document.getElementById('btnCancelEdit').classList.add('hidden');
         }
 
-        // دالة مدمجة للحفظ (تفرق بين الإضافة الجديدة أو التحديث)
         function saveOrUpdateCatalog() {
             const nameInput = document.getElementById('newCatName');
             const priceInput = document.getElementById('newCatPrice');
@@ -502,21 +497,18 @@
             if(!name) return;
 
             if (editingCatId) {
-                // حالة التحديث (تعديل سلعة موجودة)
                 const item = catalogItems.find(i => i.id === editingCatId);
                 if(item) {
                     item.name = name;
                     item.price = price;
                 }
-                cancelEdit(); // مسح الحقول والعودة لوضع الإضافة
+                cancelEdit();
             } else {
-                // حالة الإضافة (سلعة جديدة)
                 catalogItems.push({ id: Date.now(), name, price });
                 nameInput.value = '';
                 priceInput.value = '';
             }
 
-            // إعادة الترتيب إذا كان هناك ترتيب نشط
             if (currentSort.column) {
                 sortCatalog(currentSort.column); 
             } else {
@@ -538,12 +530,23 @@
             const item = catalogItems.find(i => i.id === id);
             if(item) {
                 addInvoiceItem(item.name, 1, item.price);
+                // إغلاق الكتالوج اختيارياً بعد الإضافة إذا كنت تفضل ذلك
+                // toggleCatalog(false);
             }
         }
 
-        // --- تصدير PDF ---
         function downloadPDF() {
+            // إجبار واجهة العرض على مقاس الكمبيوتر قبل استخراج الـ PDF لضمان شكل الـ A4
             const element = document.getElementById('invoice-container');
+            
+            // حفظ الحجم الأصلي
+            const originalWidth = element.style.width;
+            const originalMaxWidth = element.style.maxWidth;
+            
+            // تطبيق إعدادات الطباعة مؤقتاً
+            element.style.width = '210mm';
+            element.style.maxWidth = '210mm';
+            
             const num = document.getElementById('invoiceNum').value.replace(/\//g, '-');
             const clientName = document.getElementById('clientName').value.trim() || 'Client';
             
@@ -551,11 +554,15 @@
                 margin: 0,
                 filename: `Facture_DAFIS_${num}_${clientName}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1024 }, // فرض عرض نافذة لتجنب تكسر التصميم
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(element).save();
+            html2pdf().set(opt).from(element).save().then(() => {
+                // استعادة الحجم الأصلي بعد التحميل
+                element.style.width = originalWidth;
+                element.style.maxWidth = originalMaxWidth;
+            });
         }
     </script>
 </body>
