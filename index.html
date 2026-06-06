@@ -118,18 +118,15 @@
 
         <div class="p-10 relative z-10 flex flex-col h-full">
             
-            <!-- رأس الفاتورة -->
-            <div class="flex justify-between items-start border-b-2 border-red-600 pb-6 mb-6">
-                <!-- اللوغو -->
-                <div class="flex flex-col">
-                    <div class="flex items-center gap-1 mb-1">
-                        <!-- يمكنك استبدال هذا بـ <img src="logo.png" width="150" /> إذا أردت استخدام صورة -->
-                        <span class="text-red-600 font-black text-5xl tracking-tighter" style="font-family: Impact, sans-serif;">D</span>
-                        <span class="text-gray-900 font-black text-4xl tracking-tight" style="font-family: Impact, sans-serif;">AFIS</span>
-                    </div>
-                    <span class="text-gray-800 font-bold tracking-[0.3em] text-sm ml-1">SOLUTIONS</span>
+            <!-- رأس الفاتورة المعدل -->
+            <div class="flex justify-between border-b-2 border-red-600 pb-6 mb-6">
+                
+                <!-- القسم الأيسر: اللوغو ومعلومات الشركة -->
+                <div class="flex flex-col justify-between">
+                    <!-- اللوغو (يرجى التأكد من وجود ملف logo.jpg في نفس المجلد) -->
+                    <img src="logo.jpg" alt="DAFIS Solutions Logo" class="w-36 h-auto object-contain mb-4" onerror="this.onerror=null; this.src='https://placehold.co/150x150/ffffff/e50000?text=DAFIS+LOGO';"/>
                     
-                    <div class="mt-4 text-gray-600 font-semibold text-xs flex flex-col gap-1">
+                    <div class="text-gray-600 font-semibold text-xs flex flex-col gap-2">
                         <div class="flex items-center gap-2">
                             <i class="fas fa-shield-alt text-red-600"></i> AGRÉE PAR L'ÉTAT
                         </div>
@@ -139,25 +136,27 @@
                     </div>
                 </div>
 
-                <!-- تفاصيل الفاتورة -->
-                <div class="text-right flex flex-col items-end">
-                    <h1 class="text-3xl font-black text-gray-800 mb-1 uppercase tracking-wider">Facture Proforma</h1>
-                    <div class="bg-red-600 h-1 w-16 mb-4 rounded-full"></div>
-                    
-                    <table class="text-right border-collapse">
-                        <tr>
-                            <td class="py-1 pr-3 font-bold text-gray-600">DATE :</td>
-                            <td class="py-1">
-                                <input type="text" id="invoiceDate" class="text-right border-b border-dashed border-gray-300 focus:border-red-500 w-32 font-medium">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="py-1 pr-3 font-bold text-gray-600">N° :</td>
-                            <td class="py-1">
-                                <input type="text" id="invoiceNum" value="2026/001" class="text-right border-b border-dashed border-gray-300 focus:border-red-500 w-32 font-bold text-red-600">
-                            </td>
-                        </tr>
-                    </table>
+                <!-- القسم الأيمن: تفاصيل الفاتورة -->
+                <div class="flex flex-col justify-between items-end">
+                    <!-- العنوان ورقم الفاتورة في الأعلى -->
+                    <div class="flex flex-col items-end">
+                        <div class="flex items-center gap-4 mb-2">
+                            <h1 class="text-3xl font-black text-gray-800 uppercase tracking-wider m-0">Facture Proforma</h1>
+                            
+                            <!-- رقم الفاتورة بجانب العنوان -->
+                            <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-1 rounded-md">
+                                <span class="font-bold text-gray-600">N° :</span>
+                                <input type="text" id="invoiceNum" value="2026/001" class="text-center border-none bg-transparent focus:outline-none w-20 font-black text-red-600 text-lg p-0">
+                            </div>
+                        </div>
+                        <div class="bg-red-600 h-1 w-16 rounded-full"></div>
+                    </div>
+
+                    <!-- التاريخ في الأسفل ليقابل جملة المراقبة بالفيديو -->
+                    <div class="flex items-center gap-2 mt-auto pb-0.5">
+                        <span class="font-bold text-gray-600 text-sm">DATE :</span>
+                        <input type="text" id="invoiceDate" class="text-right border-b border-dashed border-gray-400 focus:border-red-500 w-32 font-bold text-gray-800 bg-transparent">
+                    </div>
                 </div>
             </div>
 
