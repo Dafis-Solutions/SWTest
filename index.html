@@ -46,7 +46,7 @@
         }
 
         .invoice-wrapper { width: 794px; min-width: 794px; background: white; margin: 0 auto; box-shadow: 0 15px 35px rgba(0,0,0,0.15); box-sizing: border-box; flex-shrink: 0; }
-        .page-a4 { width: 100%; min-height: 1123px; padding: var(--page-padding); box-sizing: border-box; display: flex; flex-direction: column; background-color: white; position: relative; transition: padding 0.2s ease; }
+        .page-a4 { width: 794px; height: 1123px; padding: var(--page-padding); box-sizing: border-box; display: flex; flex-direction: column; background-color: white; position: relative; transition: padding 0.2s ease; overflow: hidden; }
 
         #invoiceTableBody tr { height: var(--row-height); }
         #invoiceTableBody td { padding-top: 0.5px; padding-bottom: 0.5px; line-height: 1.15; font-size: var(--table-font-size); vertical-align: middle; }
@@ -92,6 +92,14 @@
             max-height: 210px;
             overflow-y: auto;
         }
+
+        #qrcode-maps img,
+        #qrcode-maps canvas {
+            width: 92px !important;
+            height: 92px !important;
+            display: block;
+            image-rendering: pixelated;
+        }
     </style>
 </head>
 <body class="bg-gray-200 py-3 font-sans text-gray-900 flex flex-col items-center" onload="initApp()">
@@ -124,11 +132,14 @@
                 <button onclick="toggleHistory(true)" class="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
                     <i class="fas fa-history"></i> السجل
                 </button>
+                <button onclick="toggleReportsModal(true)" class="flex items-center gap-1 bg-indigo-700 hover:bg-indigo-800 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
+                    <i class="fas fa-chart-pie"></i> التقارير
+                </button>
                 <button onclick="toggleClientsModal(true)" class="flex items-center gap-1 bg-teal-700 hover:bg-teal-800 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
                     <i class="fas fa-users"></i> العملاء
                 </button>
                 <button onclick="toggleCatalog(true)" class="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
-                    <i class="fas fa-database"></i> الكتالوج
+                    <i class="fas fa-database"></i> الكتالوج والمخزون
                 </button>
                 <button onclick="toggleDebtsModal(true)" class="flex items-center gap-1 bg-rose-700 hover:bg-rose-800 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
                     <i class="fas fa-hand-holding-usd"></i> ديون الشركة والشركاء
@@ -139,7 +150,7 @@
                 <button onclick="toggleDebtorsModal(true)" class="flex items-center gap-1 bg-cyan-800 hover:bg-cyan-900 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
                     <i class="fas fa-file-invoice-dollar"></i> المدينون للشركة
                 </button>
-                <button onclick="toggleSettingsModal(true)" class="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
+                <button id="settingsBtn" style="display:none;" onclick="toggleSettingsModal(true)" class="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
                     <i class="fas fa-cog"></i> الإعدادات
                 </button>
                 <button onclick="addInvoiceItem()" class="flex items-center gap-1 bg-gray-800 hover:bg-gray-900 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-sm text-xs cursor-pointer">
@@ -170,7 +181,7 @@
             </div>
         </div>
 
-        <!-- الصف الثاني: التحكم في الجدول، الخانات، الضرائب، والتصدير (بدون Word وبدون Aperçu) -->
+        <!-- الصف الثاني: التحكم في الجدول، الخانات، الضرائب، والتصدير -->
         <div class="flex flex-wrap gap-1.5 justify-between items-center border-t border-gray-100 pt-1.5">
             <div class="flex flex-wrap gap-1.5 justify-center items-center bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 text-xs">
                 <div class="flex items-center gap-1 bg-indigo-50 border border-indigo-300 px-1.5 py-0.5 rounded font-bold text-indigo-900" dir="rtl">
@@ -242,6 +253,10 @@
                             <span>QR يحتوي بيانات الفاتورة</span>
                             <input type="checkbox" id="chkQrIncludeInvoiceData" checked onchange="generateQR(); saveDisplayPreferences();" class="accent-slate-700 w-3.5 h-3.5">
                         </label>
+                        <label class="flex items-center justify-between gap-2 font-bold text-gray-700 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
+                            <span>خصم/إعادة المخزون عند الحفظ</span>
+                            <input type="checkbox" id="chkSyncStockOnSave" onchange="saveDisplayPreferences()" class="accent-emerald-700 w-3.5 h-3.5">
+                        </label>
                         <div class="border-t border-gray-200 my-0.5 pt-1">
                             <label class="flex items-center justify-between gap-2 font-bold text-indigo-800 cursor-pointer hover:bg-indigo-50 px-2 py-1 rounded">
                                 <span>بادئة الترقيم (FAC-/PRO-/BL-/ATT-)</span>
@@ -305,7 +320,7 @@
     <div id="overflowWarningBanner" class="no-print hidden w-[96%] max-w-4xl mb-2 bg-red-50 border border-red-400 text-red-900 rounded-xl px-3.5 py-2 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs" dir="rtl">
         <div class="flex items-center gap-2 font-bold">
             <i class="fas fa-exclamation-triangle text-red-600"></i>
-            <span>تنبيه: محتوى الوثيقة يتجاوز صفحة A4 وقد يتوزع على صفحة ثانية عند الطباعة أو PDF.</span>
+            <span>تنبيه: محتوى الوثيقة يتجاوز ارتفاع صفحة A4 وقد يُقتطع أو يمتد عند الطباعة أو PDF.</span>
         </div>
         <button id="btnAutoCompressDensity" onclick="autoCompressDensity()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg font-bold cursor-pointer text-[11px]">
             <i class="fas fa-compress-alt ml-1"></i> ضغط الجدول تلقائياً
@@ -351,13 +366,13 @@
 
                     <!-- الهيدر الرسمي -->
                     <div class="flex justify-between items-center border-b-2 border-gray-800 pb-1 mb-1" id="header-p1">
-                        <div class="flex flex-col w-[36%]">
+                        <div class="flex flex-col w-[34%]">
                             <img id="companyLogoImg" src="logo.jpg" alt="DAFIS Solutions" class="w-36 h-auto object-contain"
                                  onerror="this.onerror=null;this.src='https://placehold.co/200x60/ffffff/e50000?text=DAFIS+SOLUTIONS';"/>
                         </div>
 
-                        <div class="flex flex-col items-center justify-center w-[24%]">
-                            <div id="qrcode-maps" class="p-0.5 bg-white border border-gray-200 rounded shadow-xs"></div>
+                        <div class="flex flex-col items-center justify-center w-[26%]">
+                            <div id="qrcode-maps" class="p-1.5 bg-white border border-gray-300 rounded shadow-xs flex items-center justify-center"></div>
                         </div>
 
                         <div class="flex flex-col items-end w-[40%]">
@@ -544,12 +559,12 @@
                                         <td class="py-[1px] px-1.5 font-bold text-amber-900 text-[8px]">
                                             <div class="flex items-center justify-between">
                                                 <span>Droit de Timbre</span>
-                                                <button type="button" onclick="autoCalcTimbre()" class="no-print text-[7px] bg-amber-200 hover:bg-amber-300 text-amber-950 px-1 rounded font-bold cursor-pointer" title="حساب تلقائي 1% حسب السلم القانوني">1%</button>
+                                                <button type="button" onclick="autoCalcTimbre(true)" class="no-print text-[7px] bg-amber-200 hover:bg-amber-300 text-amber-950 px-1 rounded font-bold cursor-pointer" title="حساب تلقائي حسب السلم القانوني">1%</button>
                                             </div>
                                         </td>
                                         <td class="py-[1px] px-1.5 text-right">
                                             <div class="flex justify-end items-center font-bold text-amber-900">
-                                                <input type="number" id="timbreInput" value="0" oninput="calculateTotals(); saveDraft();" class="w-16 text-right bg-transparent border-b border-dashed border-amber-400 text-[8.5px]">
+                                                <input type="number" id="timbreInput" value="0" oninput="timbreManuallyEdited = true; calculateTotals(); saveDraft();" class="w-16 text-right bg-transparent border-b border-dashed border-amber-400 text-[8.5px]">
                                                 <span class="currency-label ml-0.5">DA</span>
                                             </div>
                                         </td>
@@ -630,6 +645,115 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- ================= نافذة التقارير المالية والتحليلية (المرحلة 3) ================= -->
+    <div id="reportsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden no-print flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[92vh] modal-enter" dir="rtl">
+            <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-chart-pie"></i> التقارير المالية والتحليلية الشاملة</h2>
+                <button onclick="toggleReportsModal(false)" class="text-gray-200 hover:text-white text-2xl cursor-pointer"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 bg-gray-100 flex flex-col gap-4 text-xs">
+
+                <!-- شريط فلترة الفترة -->
+                <div class="bg-white p-3.5 rounded-xl shadow border border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2 font-bold text-gray-800">
+                        <i class="fas fa-calendar-alt text-indigo-600"></i>
+                        <span>فترة التقرير:</span>
+                        <input type="month" id="reportMonthFilter" onchange="renderReportsModal()" class="border-2 border-gray-300 rounded-lg px-3 py-1.5 font-bold text-xs bg-white outline-none focus:border-indigo-600">
+                        <button type="button" onclick="document.getElementById('reportMonthFilter').value=''; renderReportsModal();" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded-lg font-bold text-xs cursor-pointer">
+                            كل الفترات
+                        </button>
+                    </div>
+                    <button type="button" onclick="exportSummaryReportCSV()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs cursor-pointer">
+                        <i class="fas fa-file-csv ml-1"></i> تصدير ملخص التقرير CSV
+                    </button>
+                </div>
+
+                <!-- مؤشرات الأداء الرئيسية -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-white p-3.5 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold mb-1">إجمالي الفواتير (TTC)</div>
+                        <div id="repTotalInvoiced" class="text-lg font-black text-gray-900">0 DA</div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold mb-1">المحصّل فعلياً</div>
+                        <div id="repTotalCollected" class="text-lg font-black text-emerald-700">0 DA</div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold mb-1">المستحقات غير المحصّلة</div>
+                        <div id="repTotalPending" class="text-lg font-black text-red-600">0 DA</div>
+                    </div>
+                    <div id="repProfitBox" class="bg-white p-3.5 rounded-xl shadow border border-emerald-300 text-center" style="display:none;">
+                        <div class="text-gray-500 font-bold mb-1">إجمالي الفائدة (المحصّلة)</div>
+                        <div id="repTotalProfit" class="text-lg font-black text-emerald-700">0 DA</div>
+                    </div>
+                </div>
+
+                <!-- أكثر السلع مبيعاً وأعلى العملاء تعاملاً -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                        <div class="bg-gray-800 text-white px-4 py-2.5 font-bold flex items-center gap-2">
+                            <i class="fas fa-boxes text-amber-400"></i> أكثر السلع مبيعاً (من الفواتير)
+                        </div>
+                        <div class="overflow-x-auto" dir="ltr">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-gray-100 text-gray-700 border-b">
+                                    <tr>
+                                        <th class="py-2 px-3">Désignation</th>
+                                        <th class="py-2 px-3 text-center">Qté</th>
+                                        <th class="py-2 px-3 text-right">Total HT</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTopItemsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                        <div class="bg-gray-800 text-white px-4 py-2.5 font-bold flex items-center gap-2">
+                            <i class="fas fa-user-check text-emerald-400"></i> أعلى العملاء تعاملاً
+                        </div>
+                        <div class="overflow-x-auto" dir="ltr">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-gray-100 text-gray-700 border-b">
+                                    <tr>
+                                        <th class="py-2 px-3">Client</th>
+                                        <th class="py-2 px-3 text-center">Docs</th>
+                                        <th class="py-2 px-3 text-right">Total TTC</th>
+                                        <th class="py-2 px-3 text-right">Reste</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTopClientsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ملخص الالتزامات والمستحقات الشامل -->
+                <div class="bg-white rounded-xl shadow border border-gray-200 p-4">
+                    <h3 class="font-black text-gray-800 mb-3 text-sm flex items-center gap-2">
+                        <i class="fas fa-balance-scale text-indigo-700"></i> ملخص المراكز المالية والالتزامات الحالية
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                        <div class="p-3 rounded-xl bg-cyan-50 border border-cyan-200">
+                            <div class="text-cyan-900 font-bold mb-1">إجمالي مستحقات الشركة لدى المدينين</div>
+                            <div id="repSumDebtors" class="text-base font-black text-cyan-950">0 DA</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-rose-50 border border-rose-200">
+                            <div class="text-rose-900 font-bold mb-1">إجمالي الديون (شركة + شركاء)</div>
+                            <div id="repSumDebts" class="text-base font-black text-rose-950">0 DA</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                            <div class="text-amber-900 font-bold mb-1">صافي الرواتب المستحقة للموظفين</div>
+                            <div id="repSumPayroll" class="text-base font-black text-amber-950">0 DA</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
 
@@ -1036,14 +1160,18 @@
                     <label class="block text-xs font-bold text-gray-600 mb-1">اسم السلعة (Désignation):</label>
                     <input type="text" id="quickCatName" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold text-sm focus:border-blue-500 outline-none" dir="ltr">
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-3 gap-2">
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">سعر الشراء (Achat):</label>
-                        <input type="number" id="quickCatPurchase" placeholder="0" class="w-full border-2 border-emerald-400 rounded-lg px-3 py-2 font-black text-sm focus:border-emerald-600 outline-none text-left bg-emerald-50/30" dir="ltr">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">سعر الشراء:</label>
+                        <input type="number" id="quickCatPurchase" placeholder="0" class="w-full border-2 border-emerald-400 rounded-lg px-2.5 py-2 font-black text-sm focus:border-emerald-600 outline-none text-left bg-emerald-50/30" dir="ltr">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-blue-600 mb-1">سعر البيع (Vente):</label>
-                        <input type="number" id="quickCatPrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-black text-sm focus:border-blue-500 outline-none text-left" dir="ltr">
+                        <label class="block text-xs font-bold text-blue-600 mb-1">سعر البيع:</label>
+                        <input type="number" id="quickCatPrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-2.5 py-2 font-black text-sm focus:border-blue-500 outline-none text-left" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-amber-700 mb-1">المخزون:</label>
+                        <input type="number" id="quickCatStock" placeholder="—" class="w-full border-2 border-amber-300 rounded-lg px-2.5 py-2 font-bold text-sm focus:border-amber-500 outline-none text-left" dir="ltr">
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-2">
@@ -1089,10 +1217,17 @@
                         <div class="text-[10px] text-emerald-600 font-bold mt-0.5">صافي ربح الفواتير المدفوعة</div>
                     </div>
                 </div>
-                <div class="bg-purple-50 border border-purple-200 text-purple-900 rounded-lg px-3 py-1.5 text-[11px] font-bold mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <span><i class="fas fa-info-circle text-purple-600"></i> يمكنك تحويل أي وثيقة مباشرة إلى Facture عبر زر التحويل، أو عرض كشف حساب العميل من جدول العملاء.</span>
-                    <button type="button" onclick="exportInvoicesCSV()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 rounded-lg text-[11px] font-bold cursor-pointer">
-                        <i class="fas fa-file-csv ml-1"></i> تصدير CSV للمحاسب
+
+                <!-- شريط الإجراءات الجماعية وتصدير CSV -->
+                <div class="bg-purple-50 border border-purple-200 text-purple-900 rounded-lg px-3 py-2 text-[11px] font-bold mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span><i class="fas fa-tasks text-purple-700"></i> المحدد (<span id="selectedHistoryCount">0</span>):</span>
+                        <button type="button" onclick="bulkUpdateHistoryStatus('paid')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer">تعيين كـ Payée</button>
+                        <button type="button" onclick="bulkUpdateHistoryStatus('unpaid')" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer">تعيين كـ Non payée</button>
+                        <button type="button" onclick="exportInvoicesCSV(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer">تصدير المحدد CSV</button>
+                    </div>
+                    <button type="button" onclick="exportInvoicesCSV(false)" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 rounded-lg text-[11px] font-bold cursor-pointer">
+                        <i class="fas fa-file-csv ml-1"></i> تصدير الكل/المفلتر CSV
                     </button>
                 </div>
 
@@ -1120,6 +1255,7 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-white">
                             <tr>
+                                <th class="py-3 px-3 w-8 text-center"><input type="checkbox" id="chkSelectAllHistory" onchange="toggleSelectAllHistory(this.checked)" class="cursor-pointer"></th>
                                 <th class="py-3 px-4 font-bold">N° Doc</th>
                                 <th class="py-3 px-4 font-bold">Type</th>
                                 <th class="py-3 px-4 font-bold">Date</th>
@@ -1137,11 +1273,11 @@
         </div>
     </div>
 
-    <!-- نافذة الكتالوج -->
+    <!-- نافذة الكتالوج والمخزون -->
     <div id="catalogModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden no-print flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] modal-enter">
             <div class="bg-blue-800 text-white px-6 py-4 flex justify-between items-center">
-                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-database"></i> الكتالوج وإدارة السلع الموحد</h2>
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-database"></i> الكتالوج والمخزون وإدارة السلع الموحد</h2>
                 <button onclick="toggleCatalog(false)" class="text-gray-200 hover:text-white text-2xl cursor-pointer"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5 overflow-y-auto flex-1 bg-gray-100" dir="rtl">
@@ -1161,13 +1297,17 @@
                     <div class="flex flex-col md:flex-row gap-3">
                         <input type="text" id="newCatName" placeholder="Désignation..." class="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 font-bold focus:border-blue-500 outline-none" dir="ltr">
                         <div class="flex flex-wrap gap-2">
-                            <div class="relative w-28 md:w-32" id="newPurchasePriceContainer">
+                            <div class="relative w-24 md:w-28" id="newPurchasePriceContainer">
                                 <span class="absolute -top-2.5 right-2 bg-white px-1 text-[10px] font-bold text-gray-500">سعر الشراء</span>
-                                <input type="number" id="newCatPurchasePrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
+                                <input type="number" id="newCatPurchasePrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-2.5 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
                             </div>
-                            <div class="relative w-28 md:w-32">
+                            <div class="relative w-24 md:w-28">
                                 <span class="absolute -top-2.5 right-2 bg-white px-1 text-[10px] font-bold text-blue-600">سعر البيع</span>
-                                <input type="number" id="newCatPrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
+                                <input type="number" id="newCatPrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-2.5 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
+                            </div>
+                            <div class="relative w-24 md:w-28">
+                                <span class="absolute -top-2.5 right-2 bg-white px-1 text-[10px] font-bold text-amber-700">المخزون</span>
+                                <input type="number" id="newCatStock" placeholder="—" class="w-full border-2 border-gray-300 rounded-lg px-2.5 py-2 font-bold focus:border-amber-500 outline-none text-left" dir="ltr">
                             </div>
                             <button onclick="addNewCatalogItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-bold flex-1 md:flex-none transition-transform active:scale-95 cursor-pointer"><i class="fas fa-plus"></i> إضافة</button>
                         </div>
@@ -1192,10 +1332,11 @@
                 </div>
 
                 <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-200" dir="ltr">
-                    <table class="w-full text-left text-sm min-w-[700px]">
+                    <table class="w-full text-left text-sm min-w-[760px]">
                         <thead class="bg-gray-800 text-white">
                             <tr>
-                                <th class="py-3 px-4 font-bold w-[35%]">Désignation</th>
+                                <th class="py-3 px-4 font-bold w-[32%]">Désignation</th>
+                                <th class="py-3 px-3 font-bold text-amber-300 text-center">Stock</th>
                                 <th id="catThPurch" class="py-3 px-4 font-bold text-gray-300">Achat (شراء)</th>
                                 <th class="py-3 px-4 font-bold text-blue-300">Vente (بيع)</th>
                                 <th id="catThProf" class="py-3 px-4 font-bold text-emerald-400">Bénéfice (فائدة)</th>
@@ -1326,6 +1467,7 @@
         let companyDebts = [];
         let employeeRecords = [];
         let companyDebtors = [];
+        let selectedHistoryIds = new Set();
 
         let inlineEditId = null;
         let editingClientIdx = null;
@@ -1338,7 +1480,9 @@
         let quickAddRowId = null;
         let useDocPrefix = true;
         let showUnitCol = false;
+        let syncStockOnSave = false;
         let wordsManuallyEdited = false;
+        let timbreManuallyEdited = false;
         let docCounters = { facture: 40, proforma: 0, bl: 0, attachement: 0 };
         let docNumDrafts = { facture: null, proforma: null, bl: null, attachement: null };
 
@@ -1361,15 +1505,15 @@
         }
 
         const initialDefaultItems = [
-            { name: 'XVR Dahua, 8CH 5MP COPER', unit: 'U', qty: 1, price: 25500, purchasePrice: 20000 },
-            { name: 'Bloc Alimentation 8', unit: 'U', qty: 1, price: 6500, purchasePrice: 4800 },
-            { name: 'Souris Dahua', unit: 'U', qty: 1, price: 2000, purchasePrice: 1200 },
-            { name: 'Armoire 2U', unit: 'U', qty: 1, price: 8000, purchasePrice: 6000 },
-            { name: 'Cam Dahua 5MP EXT', unit: 'U', qty: 1, price: 14000, purchasePrice: 10500 },
-            { name: 'Cam Dahua 5MP INT AUDIO', unit: 'U', qty: 2, price: 14000, purchasePrice: 10500 },
-            { name: 'Rallonges', unit: 'U', qty: 1, price: 1200, purchasePrice: 800 },
-            { name: 'BOIT DERIVATION', unit: 'U', qty: 4, price: 800, purchasePrice: 500 },
-            { name: 'Cable COX', unit: 'ml', qty: 80, price: 145, purchasePrice: 100 }
+            { name: 'XVR Dahua, 8CH 5MP COPER', unit: 'U', qty: 1, price: 25500, purchasePrice: 20000, stock: null },
+            { name: 'Bloc Alimentation 8', unit: 'U', qty: 1, price: 6500, purchasePrice: 4800, stock: null },
+            { name: 'Souris Dahua', unit: 'U', qty: 1, price: 2000, purchasePrice: 1200, stock: null },
+            { name: 'Armoire 2U', unit: 'U', qty: 1, price: 8000, purchasePrice: 6000, stock: null },
+            { name: 'Cam Dahua 5MP EXT', unit: 'U', qty: 1, price: 14000, purchasePrice: 10500, stock: null },
+            { name: 'Cam Dahua 5MP INT AUDIO', unit: 'U', qty: 2, price: 14000, purchasePrice: 10500, stock: null },
+            { name: 'Rallonges', unit: 'U', qty: 1, price: 1200, purchasePrice: 800, stock: null },
+            { name: 'BOIT DERIVATION', unit: 'U', qty: 4, price: 800, purchasePrice: 500, stock: null },
+            { name: 'Cable COX', unit: 'ml', qty: 80, price: 145, purchasePrice: 100, stock: null }
         ];
 
         function sha256Hex(ascii) {
@@ -1529,6 +1673,10 @@
         }
 
         function toggleSettingsModal(show) {
+            if (show && !isAdmin) {
+                alert('قائمة الإعدادات متاحة في وضع المسؤول فقط. يرجى تسجيل الدخول أولاً.');
+                return;
+            }
             const m = document.getElementById('settingsModal');
             if (show) {
                 document.getElementById('setVendorName').value = companySettings.name || '';
@@ -1629,6 +1777,7 @@
                     notes: document.getElementById('invoiceNotes').value,
                     amountInWords: document.getElementById('amountInWords').value,
                     wordsManuallyEdited,
+                    timbreManuallyEdited,
                     paymentMode: document.getElementById('paymentModeSelect').value,
                     tvaActive: document.getElementById('toggleTva').checked,
                     tvaRate: document.getElementById('tvaInput').value,
@@ -1672,6 +1821,7 @@
                 if (d.notes !== undefined) document.getElementById('invoiceNotes').value = d.notes;
                 if (d.amountInWords !== undefined) document.getElementById('amountInWords').value = d.amountInWords;
                 wordsManuallyEdited = !!d.wordsManuallyEdited;
+                timbreManuallyEdited = !!d.timbreManuallyEdited;
                 if (d.paymentMode) document.getElementById('paymentModeSelect').value = d.paymentMode;
                 if (typeof d.tvaActive === 'boolean') document.getElementById('toggleTva').checked = d.tvaActive;
                 if (d.tvaRate !== undefined) document.getElementById('tvaInput').value = d.tvaRate;
@@ -1711,10 +1861,12 @@
                 remise: document.getElementById('chkToggleRemise').checked,
                 words: document.getElementById('chkToggleWords').checked,
                 qrIncludeInvoiceData: document.getElementById('chkQrIncludeInvoiceData').checked,
+                syncStockOnSave: document.getElementById('chkSyncStockOnSave').checked,
                 tva: document.getElementById('toggleTva').checked,
                 currency: document.getElementById('currencySelect').value,
                 useDocPrefix: document.getElementById('chkUseDocPrefix').checked
             };
+            syncStockOnSave = prefs.syncStockOnSave;
             localStorage.setItem('dafis_display_prefs', JSON.stringify(prefs));
         }
 
@@ -1738,6 +1890,10 @@
                 if (typeof p.remise === 'boolean') document.getElementById('chkToggleRemise').checked = p.remise;
                 if (typeof p.words === 'boolean') document.getElementById('chkToggleWords').checked = p.words;
                 if (typeof p.qrIncludeInvoiceData === 'boolean') document.getElementById('chkQrIncludeInvoiceData').checked = p.qrIncludeInvoiceData;
+                if (typeof p.syncStockOnSave === 'boolean') {
+                    syncStockOnSave = p.syncStockOnSave;
+                    document.getElementById('chkSyncStockOnSave').checked = p.syncStockOnSave;
+                }
                 if (typeof p.tva === 'boolean') document.getElementById('toggleTva').checked = p.tva;
                 if (p.currency) {
                     currentCurrency = p.currency;
@@ -2011,17 +2167,20 @@
             const mode = document.getElementById('paymentModeSelect').value;
             const chkTimbre = document.getElementById('chkToggleTimbre');
             if (mode === 'Espèces' && !isNoPriceDoc()) {
+                timbreManuallyEdited = false;
                 chkTimbre.checked = true;
                 toggleSection('timbre', true);
-                autoCalcTimbre();
+                autoCalcTimbre(false);
             } else if (mode !== 'Espèces') {
+                timbreManuallyEdited = false;
                 document.getElementById('timbreInput').value = 0;
                 calculateTotals();
             }
         }
 
-        function autoCalcTimbre() {
+        function autoCalcTimbre(force = false) {
             if (document.getElementById('paymentModeSelect').value !== 'Espèces' || isNoPriceDoc()) return;
+            if (timbreManuallyEdited && !force) return;
             const subTotal = invoiceItems.reduce((s, i) => s + i.qty * i.price, 0);
             const fraisChecked = document.getElementById('chkToggleFrais').checked;
             const totalFrais = fraisChecked ? extraCharges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0) : 0;
@@ -2032,9 +2191,14 @@
             const priceHelperVal = priceHelperChecked ? (parseFloat(document.getElementById('priceHelperInput').value) || 0) : 0;
             const base = Math.max(0, subTotal + totalFrais + tvaAmount - priceHelperVal);
             document.getElementById('timbreInput').value = computeTimbreAmount(base);
+            if (force) {
+                timbreManuallyEdited = false;
+                calculateTotals();
+                saveDraft();
+            }
         }
 
-        // ================= التفقيط بالفرنسية (مع تصحيح un million de ...) =================
+        // ================= التفقيط بالفرنسية =================
         function integerToFrench(n) {
             n = Math.floor(Math.abs(n));
             if (n === 0) return 'zéro';
@@ -2263,35 +2427,75 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             if (statProfitCard) statProfitCard.style.display = isAdmin ? 'block' : 'none';
             const histThProfit = document.getElementById('histThProfit');
             if (histThProfit) histThProfit.style.display = isAdmin ? 'table-cell' : 'none';
+            const repProfitBox = document.getElementById('repProfitBox');
+            if (repProfitBox) repProfitBox.style.display = isAdmin ? 'block' : 'none';
+
+            const settingsBtn = document.getElementById('settingsBtn');
+            if (settingsBtn) settingsBtn.style.display = isAdmin ? 'flex' : 'none';
+            if (!isAdmin) toggleSettingsModal(false);
 
             renderInvoiceTable();
             if (!document.getElementById('catalogModal').classList.contains('hidden')) renderCatalog();
             if (!document.getElementById('historyModal').classList.contains('hidden')) renderHistoryTable();
+            if (!document.getElementById('reportsModal').classList.contains('hidden')) renderReportsModal();
         }
 
         function generateQR() {
             const el = document.getElementById('qrcode-maps');
             if (!el) return;
             el.innerHTML = '';
+
             const includeInv = document.getElementById('chkQrIncludeInvoiceData')?.checked;
-            let qrPayload = companySettings.mapsUrl || DEFAULT_COMPANY_SETTINGS.mapsUrl;
+            const mapUrl = companySettings.mapsUrl || DEFAULT_COMPANY_SETTINGS.mapsUrl;
+            let qrPayload = mapUrl;
+
             if (includeInv) {
-                const invNum = document.getElementById('invoiceNum')?.value || '';
-                const invDate = document.getElementById('invoiceDate')?.value || '';
-                const client = document.getElementById('clientName')?.value || '';
-                const nif = document.getElementById('clientNif')?.value || '';
-                qrPayload = `Doc:${invNum}|Date:${invDate}|Client:${client}|NIF:${nif}|TTC:${currentTotalTTC} ${currentCurrency}|Map:${qrPayload}`;
+                const invNum = (document.getElementById('invoiceNum')?.value || '').trim();
+                const invDate = (document.getElementById('invoiceDate')?.value || '').trim();
+                const client = (document.getElementById('clientName')?.value || '-').trim().slice(0, 32);
+                const nif = (document.getElementById('clientNif')?.value || '').trim();
+                const lines = [
+                    `DOC: ${invNum}`,
+                    `DATE: ${invDate}`,
+                    `CLIENT: ${client}`
+                ];
+                if (nif && nif !== '/') lines.push(`NIF: ${nif}`);
+                if (!isNoPriceDoc()) {
+                    lines.push(`TTC: ${currentTotalTTC.toLocaleString('fr-FR')} ${currentCurrency}`);
+                    lines.push(`NET: ${currentNetAPayer.toLocaleString('fr-FR')} ${currentCurrency}`);
+                }
+                qrPayload = lines.join('\n');
             }
+
+            const safeUtf8 = (str) => {
+                try {
+                    return unescape(encodeURIComponent(str));
+                } catch (err) {
+                    return str;
+                }
+            };
+
             try {
                 new QRCode(el, {
-                    text: qrPayload,
-                    width: 52,
-                    height: 52,
-                    colorDark: '#1f2937',
+                    text: safeUtf8(qrPayload),
+                    width: 184,
+                    height: 184,
+                    colorDark: '#000000',
                     colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.M
+                    correctLevel: includeInv ? QRCode.CorrectLevel.L : QRCode.CorrectLevel.M
                 });
-            } catch (e) {}
+            } catch (e) {
+                try {
+                    new QRCode(el, {
+                        text: safeUtf8(qrPayload.slice(0, 100)),
+                        width: 184,
+                        height: 184,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.L
+                    });
+                } catch (e2) {}
+            }
         }
 
         function updateCurrency(shouldSave = false) {
@@ -2372,7 +2576,9 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             }
 
             const sc = localStorage.getItem('dafis_catalog');
-            catalogItems = sc ? JSON.parse(sc) : initialDefaultItems.map((c, i) => ({ id: i + 1, name: c.name, purchasePrice: c.purchasePrice, price: c.price }));
+            catalogItems = sc
+                ? JSON.parse(sc)
+                : initialDefaultItems.map((c, i) => ({ id: i + 1, name: c.name, purchasePrice: c.purchasePrice, price: c.price, stock: c.stock ?? null }));
             if (!sc) saveCatalog();
 
             const si = localStorage.getItem('dafis_history');
@@ -2553,6 +2759,11 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             renderClientsModalTable();
         }
 
+        function openClientStatementModalByIdx(idx) {
+            const c = clientsList[idx];
+            if (c) openClientStatementModal(c.name);
+        }
+
         function openClientStatementModal(clientName) {
             const key = (clientName || '').trim().toLowerCase();
             const docs = savedInvoices.filter(inv => {
@@ -2616,7 +2827,6 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             }
 
             filtered.forEach(({ c, idx }) => {
-                const safeJsName = c.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-200 hover:bg-gray-50">
                         <td class="py-2.5 px-3 font-black text-gray-900">${escapeHtml(c.name)}</td>
@@ -2626,7 +2836,7 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                         <td class="py-2.5 px-3 text-gray-700">${escapeHtml(c.phone || '')}${c.email ? `<br><span class="text-[10px] text-blue-600">${escapeHtml(c.email)}</span>` : ''}</td>
                         <td class="py-2.5 px-3 text-center whitespace-nowrap">
                             <button onclick="selectClientFromModal(${idx})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded font-bold text-[11px] cursor-pointer" title="إدراج في الوثيقة"><i class="fas fa-check"></i> اختيار</button>
-                            <button onclick="openClientStatementModal('${safeJsName}')" class="bg-teal-100 hover:bg-teal-200 text-teal-900 px-2 py-1 rounded font-bold text-[11px] cursor-pointer" title="كشف الحساب"><i class="fas fa-file-invoice"></i> كشف</button>
+                            <button onclick="openClientStatementModalByIdx(${idx})" class="bg-teal-100 hover:bg-teal-200 text-teal-900 px-2 py-1 rounded font-bold text-[11px] cursor-pointer" title="كشف الحساب"><i class="fas fa-file-invoice"></i> كشف</button>
                             <button onclick="editClientInModal(${idx})" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded cursor-pointer" title="تعديل"><i class="fas fa-pen"></i></button>
                             <button onclick="deleteClientFromModal(${idx})" class="text-red-600 hover:bg-red-100 p-1.5 rounded cursor-pointer" title="حذف"><i class="fas fa-trash"></i></button>
                         </td>
@@ -2749,20 +2959,26 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             renderDebtsTable();
         }
 
+        function getDebtsSummary() {
+            let sumComp = 0, sumPart = 0, sumRem = 0;
+            companyDebts.forEach(d => {
+                const rem = Math.max(0, (Number(d.total) || 0) - (Number(d.paid) || 0));
+                sumRem += rem;
+                if (d.category === 'partner') sumPart += rem;
+                else sumComp += rem;
+            });
+            return { sumComp, sumPart, sumRem };
+        }
+
         function renderDebtsTable() {
             const tbody = document.getElementById('debtsTableBody');
             tbody.innerHTML = '';
-            let sumComp = 0, sumPart = 0, sumRem = 0;
 
             if (!companyDebts.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-5 text-center text-gray-400 font-bold">لا توجد ديون مسجلة حالياً.</td></tr>`;
             } else {
                 companyDebts.forEach(d => {
                     const rem = Math.max(0, (Number(d.total) || 0) - (Number(d.paid) || 0));
-                    sumRem += rem;
-                    if (d.category === 'partner') sumPart += rem;
-                    else sumComp += rem;
-
                     const catBadge = d.category === 'partner'
                         ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">شريك / صاحب شركة</span>'
                         : '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-900 font-bold text-[10px]">دين على الشركة</span>';
@@ -2783,6 +2999,7 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                 });
             }
 
+            const { sumComp, sumPart, sumRem } = getDebtsSummary();
             document.getElementById('debtsTotalRemaining').textContent = `${sumRem.toLocaleString('fr-FR')} DA`;
             document.getElementById('debtsCompanySum').textContent = `${sumComp.toLocaleString('fr-FR')} DA`;
             document.getElementById('debtsPartnersSum').textContent = `${sumPart.toLocaleString('fr-FR')} DA`;
@@ -2844,10 +3061,23 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             renderPayrollTable();
         }
 
+        function getPayrollSummary() {
+            let totalDays = 0, totalWages = 0, netDue = 0;
+            employeeRecords.forEach(emp => {
+                const days = Number(emp.days) || 0;
+                const rate = Number(emp.dailyRate) || 0;
+                const adv = Number(emp.advance) || 0;
+                const gross = days * rate;
+                totalDays += days;
+                totalWages += gross;
+                netDue += (gross - adv);
+            });
+            return { totalDays, totalWages, netDue };
+        }
+
         function renderPayrollTable() {
             const tbody = document.getElementById('payrollTableBody');
             tbody.innerHTML = '';
-            let totalDays = 0, totalWages = 0, netDue = 0;
 
             if (!employeeRecords.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-5 text-center text-gray-400 font-bold">لا يوجد موظفون مسجلون حالياً.</td></tr>`;
@@ -2858,9 +3088,6 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                     const adv = Number(emp.advance) || 0;
                     const gross = days * rate;
                     const net = gross - adv;
-                    totalDays += days;
-                    totalWages += gross;
-                    netDue += net;
 
                     tbody.innerHTML += `
                         <tr class="border-b border-gray-200 hover:bg-gray-50">
@@ -2888,6 +3115,7 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                 });
             }
 
+            const { totalDays, totalWages, netDue } = getPayrollSummary();
             document.getElementById('payrollTotalDays').textContent = `${totalDays} يوم`;
             document.getElementById('payrollTotalWages').textContent = `${totalWages.toLocaleString('fr-FR')} DA`;
             document.getElementById('payrollNetDue').textContent = `${netDue.toLocaleString('fr-FR')} DA`;
@@ -2945,17 +3173,35 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             renderDebtorsTables();
         }
 
+        function getDebtorsSummary() {
+            const manualRemSum = companyDebtors.reduce((s, d) => s + Math.max(0, (Number(d.total) || 0) - (Number(d.paid) || 0)), 0);
+            const clientMap = {};
+            savedInvoices.forEach(inv => {
+                const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
+                if (t !== 'facture' || inv.status === 'cancelled') return;
+                const key = (inv.client || '').trim();
+                if (!key) return;
+                if (!clientMap[key]) clientMap[key] = { name: key, count: 0, total: 0, paid: 0 };
+                const tot = Number(inv.total) || 0;
+                const paidAmt = inv.status === 'paid' ? tot : Math.min(tot, Number(inv.remiseVal) || 0);
+                clientMap[key].count++;
+                clientMap[key].total += tot;
+                clientMap[key].paid += paidAmt;
+            });
+            const openClients = Object.values(clientMap).filter(c => c.total - c.paid > 0);
+            const invRemSum = openClients.reduce((s, c) => s + Math.max(0, c.total - c.paid), 0);
+            return { manualRemSum, invRemSum, openClients, totalRem: manualRemSum + invRemSum };
+        }
+
         function renderDebtorsTables() {
             const manualBody = document.getElementById('debtorsManualTableBody');
             manualBody.innerHTML = '';
-            let manualRemSum = 0;
 
             if (!companyDebtors.length) {
                 manualBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-gray-400 font-bold">لا توجد ذمم يدوية مسجلة.</td></tr>`;
             } else {
                 companyDebtors.forEach(d => {
                     const rem = Math.max(0, (Number(d.total) || 0) - (Number(d.paid) || 0));
-                    manualRemSum += rem;
                     manualBody.innerHTML += `
                         <tr class="border-b border-gray-200 hover:bg-gray-50">
                             <td class="py-2 px-3 font-black text-gray-900">${escapeHtml(d.name)}</td>
@@ -2971,32 +3217,15 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                 });
             }
 
-            const clientMap = {};
-            savedInvoices.forEach(inv => {
-                const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-                if (t !== 'facture' || inv.status === 'cancelled') return;
-                const key = (inv.client || '').trim();
-                if (!key) return;
-                if (!clientMap[key]) clientMap[key] = { name: key, count: 0, total: 0, paid: 0 };
-                const tot = Number(inv.total) || 0;
-                const paidAmt = inv.status === 'paid' ? tot : Math.min(tot, Number(inv.remiseVal) || 0);
-                clientMap[key].count++;
-                clientMap[key].total += tot;
-                clientMap[key].paid += paidAmt;
-            });
-
+            const { manualRemSum, invRemSum, openClients, totalRem } = getDebtorsSummary();
             const invBody = document.getElementById('debtorsInvoicesTableBody');
             invBody.innerHTML = '';
-            let invRemSum = 0;
-            const openClients = Object.values(clientMap).filter(c => c.total - c.paid > 0);
 
             if (!openClients.length) {
                 invBody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-gray-400 font-bold">لا توجد أرصدة فواتير غير مسددة.</td></tr>`;
             } else {
-                openClients.forEach(c => {
+                openClients.forEach((c, idx) => {
                     const rem = Math.max(0, c.total - c.paid);
-                    invRemSum += rem;
-                    const safeJsName = c.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     invBody.innerHTML += `
                         <tr class="border-b border-gray-200 hover:bg-gray-50">
                             <td class="py-2 px-3 font-black text-gray-900">${escapeHtml(c.name)}</td>
@@ -3005,18 +3234,141 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                             <td class="py-2 px-3 text-left font-bold text-emerald-700">${c.paid.toLocaleString('fr-FR')} DA</td>
                             <td class="py-2 px-3 text-left font-black text-red-600">${rem.toLocaleString('fr-FR')} DA</td>
                             <td class="py-2 px-3 text-center">
-                                <button onclick="openClientStatementModal('${safeJsName}')" class="bg-teal-700 hover:bg-teal-800 text-white px-2 py-1 rounded text-[11px] font-bold cursor-pointer">كشف الحساب</button>
+                                <button onclick="openDebtorClientStatement(${idx})" class="bg-teal-700 hover:bg-teal-800 text-white px-2 py-1 rounded text-[11px] font-bold cursor-pointer">كشف الحساب</button>
                             </td>
                         </tr>`;
                 });
             }
 
+            window._latestOpenDebtors = openClients;
             document.getElementById('debtorsFromInvoices').textContent = `${invRemSum.toLocaleString('fr-FR')} DA`;
             document.getElementById('debtorsManualSum').textContent = `${manualRemSum.toLocaleString('fr-FR')} DA`;
-            document.getElementById('debtorsTotalRemaining').textContent = `${(invRemSum + manualRemSum).toLocaleString('fr-FR')} DA`;
+            document.getElementById('debtorsTotalRemaining').textContent = `${totalRem.toLocaleString('fr-FR')} DA`;
         }
 
-        // ================= النسخ الاحتياطي والاستيراد =================
+        function openDebtorClientStatement(idx) {
+            const list = window._latestOpenDebtors || [];
+            if (list[idx]) openClientStatementModal(list[idx].name);
+        }
+
+        // ================= التقارير المالية والتحليلية (المرحلة 3) =================
+        function toggleReportsModal(show) {
+            const m = document.getElementById('reportsModal');
+            if (show) {
+                renderReportsModal();
+                m.classList.remove('hidden');
+            } else {
+                m.classList.add('hidden');
+            }
+        }
+
+        function renderReportsModal() {
+            const monthVal = document.getElementById('reportMonthFilter')?.value || '';
+            const filteredDocs = savedInvoices.filter(inv => {
+                if (!monthVal) return true;
+                const iso = parseFrenchDateToComparable(inv.date);
+                return iso.startsWith(monthVal);
+            });
+
+            let totalInvoiced = 0, totalCollected = 0, totalPending = 0, totalProfitPaid = 0;
+            const itemMap = {};
+            const clientMap = {};
+
+            filteredDocs.forEach(inv => {
+                const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
+                if (inv.status === 'cancelled') return;
+
+                const tot = Number(inv.total) || 0;
+                const invProf = inv.profit !== undefined
+                    ? Number(inv.profit) || 0
+                    : (inv.itemsSnapshot || []).reduce((s, it) => s + (it.qty * ((it.price || 0) - (it.purchasePrice || 0))), 0);
+
+                const cName = (inv.client || 'Client').trim();
+                if (!clientMap[cName]) clientMap[cName] = { name: cName, count: 0, total: 0, paid: 0 };
+                clientMap[cName].count++;
+
+                if (t === 'facture') {
+                    totalInvoiced += tot;
+                    const paidAmt = inv.status === 'paid' ? tot : Math.min(tot, Number(inv.remiseVal) || 0);
+                    totalCollected += paidAmt;
+                    totalPending += Math.max(0, tot - paidAmt);
+                    if (inv.status === 'paid') totalProfitPaid += invProf;
+
+                    clientMap[cName].total += tot;
+                    clientMap[cName].paid += paidAmt;
+
+                    (inv.itemsSnapshot || []).forEach(it => {
+                        const key = (it.name || '').trim();
+                        if (!key) return;
+                        if (!itemMap[key]) itemMap[key] = { name: key, qty: 0, revenue: 0 };
+                        const q = Number(it.qty) || 0;
+                        itemMap[key].qty += q;
+                        itemMap[key].revenue += q * (Number(it.price) || 0);
+                    });
+                }
+            });
+
+            document.getElementById('repTotalInvoiced').textContent = `${totalInvoiced.toLocaleString('fr-FR')} DA`;
+            document.getElementById('repTotalCollected').textContent = `${totalCollected.toLocaleString('fr-FR')} DA`;
+            document.getElementById('repTotalPending').textContent = `${totalPending.toLocaleString('fr-FR')} DA`;
+            const repProfEl = document.getElementById('repTotalProfit');
+            if (repProfEl) repProfEl.textContent = `${totalProfitPaid >= 0 ? '+' : ''}${totalProfitPaid.toLocaleString('fr-FR')} DA`;
+
+            const topItems = Object.values(itemMap).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+            const itemsBody = document.getElementById('reportTopItemsBody');
+            itemsBody.innerHTML = topItems.length
+                ? topItems.map(it => `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 font-bold text-gray-800">${escapeHtml(it.name)}</td>
+                        <td class="py-2 px-3 text-center font-black text-blue-700">${it.qty.toLocaleString('fr-FR')}</td>
+                        <td class="py-2 px-3 text-right font-black text-gray-900">${it.revenue.toLocaleString('fr-FR')} DA</td>
+                    </tr>`).join('')
+                : `<tr><td colspan="3" class="py-4 text-center text-gray-400 font-bold">لا توجد بيانات مبيعات ضمن الفترة.</td></tr>`;
+
+            const topClients = Object.values(clientMap).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 8);
+            const clientsBody = document.getElementById('reportTopClientsBody');
+            clientsBody.innerHTML = topClients.length
+                ? topClients.map(c => {
+                    const rem = Math.max(0, c.total - c.paid);
+                    return `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 font-bold text-gray-800">${escapeHtml(c.name)}</td>
+                        <td class="py-2 px-3 text-center font-bold">${c.count}</td>
+                        <td class="py-2 px-3 text-right font-black text-gray-900">${c.total.toLocaleString('fr-FR')} DA</td>
+                        <td class="py-2 px-3 text-right font-black ${rem > 0 ? 'text-red-600' : 'text-emerald-700'}">${rem.toLocaleString('fr-FR')} DA</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="4" class="py-4 text-center text-gray-400 font-bold">لا توجد بيانات عملاء ضمن الفترة.</td></tr>`;
+
+            const debtorsSum = getDebtorsSummary().totalRem;
+            const debtsSum = getDebtsSummary().sumRem;
+            const payrollSum = getPayrollSummary().netDue;
+
+            document.getElementById('repSumDebtors').textContent = `${debtorsSum.toLocaleString('fr-FR')} DA`;
+            document.getElementById('repSumDebts').textContent = `${debtsSum.toLocaleString('fr-FR')} DA`;
+            document.getElementById('repSumPayroll').textContent = `${payrollSum.toLocaleString('fr-FR')} DA`;
+        }
+
+        function exportSummaryReportCSV() {
+            const monthVal = document.getElementById('reportMonthFilter')?.value || 'ALL';
+            const lines = [
+                ['Period', monthVal],
+                ['Total Invoiced TTC', document.getElementById('repTotalInvoiced').textContent],
+                ['Total Collected', document.getElementById('repTotalCollected').textContent],
+                ['Total Pending', document.getElementById('repTotalPending').textContent],
+                ['Debtors Balance', document.getElementById('repSumDebtors').textContent],
+                ['Debts Balance', document.getElementById('repSumDebts').textContent],
+                ['Net Payroll Due', document.getElementById('repSumPayroll').textContent]
+            ].map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(';'));
+
+            const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `dafis_report_${monthVal}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // ================= النسخ الاحتياطي والاستيراد المحصّن =================
         function checkBackupReminder() {
             const count = parseInt(localStorage.getItem('dafis_saves_since_backup') || '0', 10);
             if (count >= 15) {
@@ -3031,6 +3383,8 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
 
         function exportData() {
             const data = {
+                app: 'DAFIS_SOLUTIONS_INVOICE_SYSTEM',
+                version: 3,
                 companySettings,
                 catalog: catalogItems,
                 history: savedInvoices,
@@ -3047,6 +3401,17 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             dismissBackupReminder();
         }
 
+        function validateImportPayload(d) {
+            if (!d || typeof d !== 'object' || Array.isArray(d)) return 'الملف ليس كائن JSON صالحاً.';
+            const hasAnyKnownKey = ['companySettings', 'catalog', 'history', 'clients', 'docCounters', 'companyDebts', 'employeeRecords', 'companyDebtors']
+                .some(k => Object.prototype.hasOwnProperty.call(d, k));
+            if (!hasAnyKnownKey) return 'الملف لا يحتوي على بيانات نظام DAFIS المعروفة.';
+            if (d.catalog !== undefined && !Array.isArray(d.catalog)) return 'حقل الكتالوج غير صالح.';
+            if (d.history !== undefined && !Array.isArray(d.history)) return 'حقل سجل الوثائق غير صالح.';
+            if (d.clients !== undefined && !Array.isArray(d.clients)) return 'حقل العملاء غير صالح.';
+            return null;
+        }
+
         function handleImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -3054,28 +3419,90 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             reader.onload = e => {
                 try {
                     const d = JSON.parse(e.target.result);
-                    if (d.companySettings) { companySettings = { ...DEFAULT_COMPANY_SETTINGS, ...d.companySettings }; localStorage.setItem('dafis_company_settings', JSON.stringify(companySettings)); }
-                    if (d.catalog) { catalogItems = d.catalog.map(c => ({ ...c, purchasePrice: c.purchasePrice || 0 })); saveCatalog(); }
-                    if (d.history) { savedInvoices = d.history; localStorage.setItem('dafis_history', JSON.stringify(savedInvoices)); }
-                    if (d.clients) { clientsList = normalizeClientsList(d.clients); saveClientsStorage(); }
-                    if (d.docCounters) { docCounters = { ...docCounters, ...d.docCounters }; saveDocCounters(); }
-                    if (d.companyDebts) { companyDebts = d.companyDebts; saveDebtsStorage(); }
-                    if (d.employeeRecords) { employeeRecords = d.employeeRecords; savePayrollStorage(); }
-                    if (d.companyDebtors) { companyDebtors = d.companyDebtors; saveDebtorsStorage(); }
+                    const errMsg = validateImportPayload(d);
+                    if (errMsg) {
+                        alert('❌ فشل الاستيراد: ' + errMsg);
+                        return;
+                    }
+
+                    // حفظ لقطة احتياطية قبل الاستيراد
+                    try {
+                        localStorage.setItem('dafis_pre_import_backup', JSON.stringify({
+                            savedAt: new Date().toISOString(),
+                            companySettings,
+                            catalog: catalogItems,
+                            history: savedInvoices,
+                            clients: clientsList,
+                            docCounters,
+                            companyDebts,
+                            employeeRecords,
+                            companyDebtors
+                        }));
+                    } catch (err) {}
+
+                    if (d.companySettings && typeof d.companySettings === 'object') {
+                        companySettings = { ...DEFAULT_COMPANY_SETTINGS, ...d.companySettings };
+                        localStorage.setItem('dafis_company_settings', JSON.stringify(companySettings));
+                    }
+                    if (Array.isArray(d.catalog)) {
+                        catalogItems = d.catalog.map(c => ({
+                            ...c,
+                            purchasePrice: Number(c.purchasePrice) || 0,
+                            price: Number(c.price) || 0,
+                            stock: (c.stock === undefined || c.stock === null || c.stock === '') ? null : Number(c.stock)
+                        }));
+                        saveCatalog();
+                    }
+                    if (Array.isArray(d.history)) {
+                        savedInvoices = d.history;
+                        localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
+                    }
+                    if (Array.isArray(d.clients)) {
+                        clientsList = normalizeClientsList(d.clients);
+                        saveClientsStorage();
+                    }
+                    if (d.docCounters && typeof d.docCounters === 'object') {
+                        docCounters = { ...docCounters, ...d.docCounters };
+                        saveDocCounters();
+                    }
+                    if (Array.isArray(d.companyDebts)) { companyDebts = d.companyDebts; saveDebtsStorage(); }
+                    if (Array.isArray(d.employeeRecords)) { employeeRecords = d.employeeRecords; savePayrollStorage(); }
+                    if (Array.isArray(d.companyDebtors)) { companyDebtors = d.companyDebtors; saveDebtorsStorage(); }
+
+                    selectedHistoryIds.clear();
                     clearDraft();
                     initApp();
-                    alert('✅ Données importées avec succès !');
-                } catch { alert('❌ Fichier JSON invalide !'); }
+                    alert('✅ تم التحقق من الملف واستيراد البيانات بنجاح (مع حفظ نسخة احتياطية تلقائية قبل الاستيراد).');
+                } catch {
+                    alert('❌ ملف JSON غير صالح أو تالف!');
+                }
             };
             reader.readAsText(file);
             event.target.value = '';
         }
 
-        // ================= مزامنة الأسعار =================
+        // ================= مزامنة الأسعار والمخزون =================
         function getCatalogMatch(name) {
             const key = (name || '').trim().toLowerCase();
             if (!key) return null;
             return catalogItems.find(c => c.name.trim().toLowerCase() === key) || null;
+        }
+
+        function applyStockDeltaForItems(items, multiplier) {
+            if (!Array.isArray(items) || !items.length) return;
+            let changed = false;
+            items.forEach(it => {
+                const cat = getCatalogMatch(it.name);
+                if (cat && cat.stock !== null && cat.stock !== undefined && cat.stock !== '') {
+                    const q = Number(it.qty) || 0;
+                    cat.stock = Math.max(0, (Number(cat.stock) || 0) + (q * multiplier));
+                    changed = true;
+                }
+            });
+            if (changed) {
+                saveCatalog();
+                if (!document.getElementById('catalogModal').classList.contains('hidden')) renderCatalog();
+            }
         }
 
         function checkPriceMismatchAndNotify(item) {
@@ -3174,13 +3601,17 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             drop.style.left = `${rect.left}px`;
             drop.style.top = `${rect.bottom + 2}px`;
             drop.style.width = `${Math.max(rect.width, 280)}px`;
-            drop.innerHTML = matches.map(c => `
+            drop.innerHTML = matches.map(c => {
+                const stockBadge = (c.stock !== null && c.stock !== undefined && c.stock !== '')
+                    ? `<span class="text-[10px] ${Number(c.stock) <= 2 ? 'text-red-600' : 'text-amber-700'} font-bold mr-2">[Stock: ${c.stock}]</span>`
+                    : '';
+                return `
                 <div onmousedown="selectCatalogAutocomplete(${id}, ${c.id})"
                      class="px-3 py-1.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0">
                     <span class="font-bold text-gray-800">${escapeHtml(c.name)}</span>
-                    <span class="font-black text-blue-700 text-[11px] ml-2 whitespace-nowrap">${Number(c.price).toLocaleString('fr-FR')} ${currentCurrency}</span>
-                </div>
-            `).join('');
+                    <span class="font-black text-blue-700 text-[11px] ml-2 whitespace-nowrap">${stockBadge}${Number(c.price).toLocaleString('fr-FR')} ${currentCurrency}</span>
+                </div>`;
+            }).join('');
             drop.classList.remove('hidden');
         }
 
@@ -3292,10 +3723,12 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
         function openQuickCatalogModal(id) {
             const item = invoiceItems.find(i => i.id === id);
             if (!item) return;
+            const cat = getCatalogMatch(item.name);
             quickAddRowId = id;
             document.getElementById('quickCatName').value = item.name;
-            document.getElementById('quickCatPurchase').value = item.purchasePrice || '';
-            document.getElementById('quickCatPrice').value = item.price || 0;
+            document.getElementById('quickCatPurchase').value = item.purchasePrice || (cat?.purchasePrice ?? '');
+            document.getElementById('quickCatPrice').value = item.price || (cat?.price ?? 0);
+            document.getElementById('quickCatStock').value = (cat && cat.stock !== null && cat.stock !== undefined) ? cat.stock : '';
             document.getElementById('quickAddCatalogModal').classList.remove('hidden');
             setTimeout(() => document.getElementById('quickCatPurchase').focus(), 50);
         }
@@ -3309,6 +3742,8 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             const name = document.getElementById('quickCatName').value.trim();
             const purchasePrice = parseFloat(document.getElementById('quickCatPurchase').value) || 0;
             const price = parseFloat(document.getElementById('quickCatPrice').value) || 0;
+            const stockRaw = document.getElementById('quickCatStock').value;
+            const stock = stockRaw === '' ? null : (parseFloat(stockRaw) || 0);
 
             if (!name) {
                 alert('يرجى إدخال اسم السلعة.');
@@ -3319,8 +3754,9 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             if (existing) {
                 existing.purchasePrice = purchasePrice;
                 existing.price = price;
+                if (stock !== null) existing.stock = stock;
             } else {
-                catalogItems.push({ id: Date.now(), name, purchasePrice, price });
+                catalogItems.push({ id: Date.now(), name, purchasePrice, price, stock });
             }
             saveCatalog();
 
@@ -3364,54 +3800,63 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                     }
 
                     const cat = getCatalogMatch(item.name);
-                    const hasPriceDiff = !isBL && cat && Number(cat.price) !== Number(item.price);
+                    const hasDiff = cat && Number(cat.price) !== Number(item.price) && !isBL;
 
-                    const unitCell = showUnitCol ? `
-                        <td class="unit-col px-1 border-r border-gray-200">
-                            <input type="text" list="unitDatalist" oninput="updateItemUnit(${item.id},this.value)" value="${escapeHtml(item.unit || 'U')}"
-                                class="w-full text-center font-bold text-gray-700 bg-transparent outline-none border-b border-dashed border-gray-300 focus:border-indigo-500">
-                        </td>` : '';
+                    const unitCellHtml = showUnitCol
+                        ? `<td class="unit-col border-r border-gray-200 text-center px-0.5"><input type="text" list="unitDatalist" value="${escapeHtml(item.unit || 'U')}" onchange="updateItemUnit(${item.id}, this.value)" class="w-full text-center font-bold text-gray-700 bg-transparent outline-none"></td>`
+                        : '';
 
-                    const priceCells = isBL ? '' : `
-                        <td class="px-1 border-r border-gray-200">
-                            <input type="number" oninput="updateItem(${item.id},'price',this)" value="${item.price}"
-                                class="w-full text-center font-bold text-gray-800 bg-transparent outline-none item-price-input border-b border-dashed border-gray-300 focus:border-red-500">
+                    const priceCellsHtml = isBL ? '' : `
+                        <td class="price-col border-r border-gray-200 text-center px-0.5">
+                            <div class="flex items-center justify-center gap-0.5">
+                                <input type="number" value="${item.price}" oninput="updateItem(${item.id},'price',this)" class="item-price-input w-full text-right font-bold text-gray-900 bg-transparent outline-none">
+                                <button type="button" onclick="applyInvoicePriceToCatalog(${item.id})" class="row-price-sync-btn no-print text-amber-600 hover:text-amber-800 cursor-pointer text-[8px]" style="display:${hasDiff ? 'inline-block' : 'none'};" title="اعتماد السعر في الكتالوج"><i class="fas fa-sync"></i></button>
+                            </div>
                         </td>
-                        <td class="px-1.5 text-right font-black text-gray-900 item-total border-r border-gray-200 whitespace-nowrap">
-                            ${total.toLocaleString('fr-FR')}${profitHtml}
-                        </td>`;
+                        <td class="price-col text-right font-black text-gray-900 item-total px-1.5 whitespace-nowrap">${total.toLocaleString('fr-FR')}${profitHtml}</td>`;
 
                     tr.innerHTML = `
-                        <td class="px-1.5 border-r border-gray-200">
-                            <textarea rows="1" onfocus="showCatalogAutocomplete(${item.id},this)" oninput="handleDesignationInput(${item.id},this)"
-                                class="item-des-input w-full font-bold text-gray-800 bg-transparent outline-none" placeholder="Désignation...">${escapeHtml(item.name)}</textarea>
+                        <td class="border-r border-gray-200 px-1.5">
+                            <textarea rows="1" oninput="handleDesignationInput(${item.id},this)" onfocus="showCatalogAutocomplete(${item.id},this)" placeholder="Article..." class="item-des-input w-full font-bold text-gray-800 bg-transparent outline-none">${escapeHtml(item.name)}</textarea>
                         </td>
-                        ${unitCell}
-                        <td class="px-1 border-r border-gray-200">
-                            <input type="number" oninput="updateItem(${item.id},'qty',this)" value="${item.qty}"
-                                class="w-full text-center font-bold text-gray-800 bg-transparent outline-none border-b border-dashed border-gray-300 focus:border-red-500">
+                        ${unitCellHtml}
+                        <td class="border-r border-gray-200 text-center px-0.5">
+                            <input type="number" step="any" value="${item.qty}" oninput="updateItem(${item.id},'qty',this)" class="w-full text-center font-bold text-gray-800 bg-transparent outline-none">
                         </td>
-                        ${priceCells}
+                        ${priceCellsHtml}
                         <td class="no-print text-center px-0.5 whitespace-nowrap">
-                            <button onclick="moveInvoiceItem(${item.id},-1)" ${idx === 0 ? 'disabled' : ''} class="text-gray-500 hover:text-black disabled:opacity-25 px-0.5 cursor-pointer" title="لأعلى"><i class="fas fa-arrow-up text-[7.5px]"></i></button>
-                            <button onclick="moveInvoiceItem(${item.id},1)" ${idx === invoiceItems.length - 1 ? 'disabled' : ''} class="text-gray-500 hover:text-black disabled:opacity-25 px-0.5 cursor-pointer" title="لأسفل"><i class="fas fa-arrow-down text-[7.5px]"></i></button>
-                            <button onclick="applyInvoicePriceToCatalog(${item.id})" style="display:${hasPriceDiff ? 'inline-block' : 'none'}" class="row-price-sync-btn text-amber-600 hover:bg-amber-100 px-0.5 rounded cursor-pointer" title="${hasPriceDiff ? `يختلف عن الكتالوج (${cat.price.toLocaleString('fr-FR')}) - اضغط لاعتماد السعر في الكتالوج` : ''}"><i class="fas fa-sync-alt text-[8px]"></i></button>
-                            <button onclick="openQuickCatalogModal(${item.id})" class="text-blue-600 hover:bg-blue-100 px-0.5 rounded cursor-pointer" title="إضافة/تحديث في الكتالوج"><i class="fas fa-plus-circle text-[8.5px]"></i></button>
-                            <button onclick="removeInvoiceItem(${item.id})" class="text-red-500 hover:bg-red-100 px-0.5 rounded cursor-pointer" title="حذف السطر"><i class="fas fa-times text-[8.5px]"></i></button>
+                            <button type="button" onclick="moveInvoiceItem(${item.id},-1)" class="text-gray-400 hover:text-gray-800 cursor-pointer px-0.5" title="للأعلى"><i class="fas fa-arrow-up text-[7.5px]"></i></button>
+                            <button type="button" onclick="moveInvoiceItem(${item.id},1)" class="text-gray-400 hover:text-gray-800 cursor-pointer px-0.5" title="للأسفل"><i class="fas fa-arrow-down text-[7.5px]"></i></button>
+                            <button type="button" onclick="openQuickCatalogModal(${item.id})" class="text-blue-500 hover:text-blue-700 cursor-pointer px-0.5" title="حفظ في الكتالوج"><i class="fas fa-bookmark text-[7.5px]"></i></button>
+                            <button type="button" onclick="removeInvoiceItem(${item.id})" class="text-red-400 hover:text-red-600 cursor-pointer px-0.5" title="حذف"><i class="fas fa-times text-[8px]"></i></button>
                         </td>`;
+
                     tbody.appendChild(tr);
                     const ta = tr.querySelector('textarea');
                     if (ta) autoResizeTextarea(ta);
                 });
             }
+
             calculateTotals();
             requestAnimationFrame(checkPageOverflow);
         }
 
+        // ================= الحسابات =================
         function calculateTotals() {
+            if (isNoPriceDoc()) {
+                currentTotalTTC = 0;
+                currentNetAPayer = 0;
+                currentTotalProfit = 0;
+                requestAnimationFrame(checkPageOverflow);
+                return;
+            }
+
+            if (document.getElementById('paymentModeSelect').value === 'Espèces') {
+                autoCalcTimbre(false);
+            }
+
             const subTotal = invoiceItems.reduce((s, i) => s + i.qty * i.price, 0);
-            const totalProfit = invoiceItems.reduce((s, i) => s + (i.qty * (i.price - (i.purchasePrice || 0))), 0);
-            currentTotalProfit = totalProfit;
+            currentTotalProfit = invoiceItems.reduce((s, i) => s + i.qty * (i.price - (i.purchasePrice || 0)), 0);
 
             const fraisChecked = document.getElementById('chkToggleFrais').checked;
             const totalFrais = fraisChecked ? extraCharges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0) : 0;
@@ -3424,67 +3869,83 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             const priceHelperVal = priceHelperChecked ? (parseFloat(document.getElementById('priceHelperInput').value) || 0) : 0;
 
             const timbreChecked = document.getElementById('chkToggleTimbre').checked;
-            if (timbreChecked && document.getElementById('paymentModeSelect').value === 'Espèces' && !isNoPriceDoc()) {
-                autoCalcTimbre();
-            }
             const timbreVal = timbreChecked ? (parseFloat(document.getElementById('timbreInput').value) || 0) : 0;
 
-            const totalTTC = Math.max(0, subTotal + totalFrais + tvaAmount + timbreVal - priceHelperVal);
-            currentTotalTTC = totalTTC;
-
             const remiseChecked = document.getElementById('chkToggleRemise').checked;
-            const versementVal = remiseChecked ? (parseFloat(document.getElementById('remiseInput').value) || 0) : 0;
-            const netAPayer = Math.max(0, totalTTC - versementVal);
+            const remiseVal = remiseChecked ? (parseFloat(document.getElementById('remiseInput').value) || 0) : 0;
+
+            const totalTTC = Math.max(0, subTotal + totalFrais + tvaAmount - priceHelperVal + timbreVal);
+            const netAPayer = Math.max(0, totalTTC - remiseVal);
+
+            currentTotalTTC = totalTTC;
             currentNetAPayer = netAPayer;
 
-            const cur = currentCurrency;
+            document.getElementById('valSousTotal').innerText = `${subTotal.toLocaleString('fr-FR')} ${currentCurrency}`;
 
-            document.getElementById('valSousTotal').innerHTML = subTotal.toLocaleString('fr-FR') + ` ${cur}`;
-            document.getElementById('valFrais').innerHTML = totalFrais.toLocaleString('fr-FR') + ` ${cur}`;
-            document.getElementById('valTva').innerHTML = tvaAmount.toLocaleString('fr-FR') + ` ${cur}`;
-            document.getElementById('valTotalTtc').innerHTML = totalTTC.toLocaleString('fr-FR') + ` ${cur}`;
-            document.getElementById('valNetAPayer').innerHTML = netAPayer.toLocaleString('fr-FR') + ` ${cur}`;
+            const rowFrais = document.getElementById('rowFrais');
+            if (totalFrais !== 0) {
+                rowFrais.style.display = 'table-row';
+                document.getElementById('valFrais').innerText = `${totalFrais > 0 ? '+' : ''}${totalFrais.toLocaleString('fr-FR')} ${currentCurrency}`;
+            } else {
+                rowFrais.style.display = 'none';
+            }
+
+            const rowTva = document.getElementById('rowTva');
+            if (isTva) {
+                rowTva.style.display = 'table-row';
+                document.getElementById('valTva').innerText = `${tvaAmount.toLocaleString('fr-FR')} ${currentCurrency}`;
+            } else {
+                rowTva.style.display = 'none';
+            }
+
+            document.getElementById('valTotalTtc').innerText = `${totalTTC.toLocaleString('fr-FR')} ${currentCurrency}`;
 
             const lblNet = document.getElementById('lblNetAPayer');
-            if (lblNet) {
-                lblNet.innerText = versementVal > 0 ? 'RESTE À PAYER' : 'NET À PAYER';
-            }
-
-            document.getElementById('rowTva').style.display = isTva ? 'table-row' : 'none';
-            document.getElementById('rowFrais').style.display = (totalFrais > 0 && fraisChecked) ? 'table-row' : 'none';
-            document.getElementById('rowPriceHelper').style.display = priceHelperChecked ? 'table-row' : 'none';
-            document.getElementById('rowTimbre').style.display = (!isNoPriceDoc() && timbreChecked) ? 'table-row' : 'none';
-            document.getElementById('rowRemise').style.display = remiseChecked ? 'table-row' : 'none';
-
-            const wordsInput = document.getElementById('amountInWords');
-            if (wordsInput && !wordsManuallyEdited && wordsInput.value.trim() !== '' && totalTTC > 0) {
-                wordsInput.value = numberToFrenchWords(totalTTC, cur);
-            }
-
-            const profitBadge = document.getElementById('profitBadgeContainer');
-            const profitDisplay = document.getElementById('invoiceProfitDisplay');
-            profitDisplay.innerHTML = `${totalProfit > 0 ? '+' : ''}${totalProfit.toLocaleString('fr-FR')} <span class="text-[9px]">${cur}</span>`;
-
-            if (totalProfit >= 0) {
-                profitBadge.className = 'flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg border border-emerald-200';
+            if (remiseChecked && remiseVal > 0) {
+                lblNet.innerText = 'NET À PAYER (RESTE)';
             } else {
-                profitBadge.className = 'flex items-center gap-1 bg-red-100 text-red-800 px-2 py-1 rounded-lg border border-red-200';
+                lblNet.innerText = 'NET À PAYER';
             }
+            document.getElementById('valNetAPayer').innerText = `${netAPayer.toLocaleString('fr-FR')} ${currentCurrency}`;
+
+            const profitDisp = document.getElementById('invoiceProfitDisplay');
+            if (profitDisp && isAdmin) {
+                profitDisp.innerText = `${currentTotalProfit >= 0 ? '+' : ''}${currentTotalProfit.toLocaleString('fr-FR')} ${currentCurrency}`;
+                profitDisp.className = `font-black text-xs ${currentTotalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`;
+            }
+
+            if (!wordsManuallyEdited && totalTTC > 0) {
+                document.getElementById('amountInWords').value = numberToFrenchWords(totalTTC, currentCurrency);
+            }
+
+            generateQR();
+            requestAnimationFrame(checkPageOverflow);
         }
 
         function resetInvoiceForm() {
-            if (!confirm('تفريغ الوثيقة وبدء واحدة جديدة؟')) return;
-            invoiceItems = []; extraCharges = []; paymentHistory = [];
+            if (!confirm('تفريغ النموذج والبدء بوثيقة جديدة؟')) return;
             editingDocId = null;
+            invoiceItems = [];
+            extraCharges = [];
+            paymentHistory = [];
             wordsManuallyEdited = false;
-            ['orderRefNum', 'orderRefDate', 'clientName', 'clientAddress', 'clientNif', 'clientAi', 'clientRc', 'clientPhone', 'clientEmail', 'amountInWords', 'remiseInput', 'priceHelperInput', 'timbreInput'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = (id === 'remiseInput' || id === 'priceHelperInput' || id === 'timbreInput') ? '0' : '';
-            });
-            document.getElementById('invoiceDate').value = new Date().toLocaleDateString('fr-FR');
+            timbreManuallyEdited = false;
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientAddress').value = '';
+            document.getElementById('clientNif').value = '';
+            document.getElementById('clientAi').value = '';
+            document.getElementById('clientRc').value = '';
+            document.getElementById('clientPhone').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('orderRefNum').value = '';
+            document.getElementById('orderRefDate').value = '';
+            document.getElementById('amountInWords').value = '';
+            document.getElementById('priceHelperInput').value = '0';
+            document.getElementById('timbreInput').value = '0';
+            document.getElementById('remiseInput').value = '0';
+            document.getElementById('invoiceNotes').value = DEFAULT_NOTES[docType] || DEFAULT_NOTES.facture;
             document.getElementById('invoiceNum').value = getNextDocNumber(docType);
             docNumDrafts[docType] = document.getElementById('invoiceNum').value;
-            resetDefaultNote();
             dismissPriceSyncBanner();
             clearDraft();
             renderInvoiceTable();
@@ -3493,197 +3954,120 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
         }
 
         function duplicateCurrentInvoice() {
-            if (!confirm('نسخ الوثيقة الحالية كوثيقة جديدة؟')) return;
             editingDocId = null;
-            invoiceItems = invoiceItems.map(i => ({ ...i, id: Date.now() + Math.random() }));
-            document.getElementById('invoiceNum').value = getNextDocNumber(docType);
-            docNumDrafts[docType] = document.getElementById('invoiceNum').value;
-            syncInvoiceData();
-            renderInvoiceTable();
+            const nextNum = getNextDocNumber(docType);
+            document.getElementById('invoiceNum').value = nextNum;
+            document.getElementById('invoiceDate').value = new Date().toLocaleDateString('fr-FR');
+            docNumDrafts[docType] = nextNum;
             generateQR();
             saveDraft();
+            alert(`✅ تم نسخ الوثيقة برقم جديد: ${nextNum}`);
         }
 
-        function derivePaymentStatus(existingStatus, totalTTC, versementVal) {
-            if (existingStatus === 'cancelled') return 'cancelled';
-            const mode = document.getElementById('paymentModeSelect').value;
-            if (totalTTC > 0 && versementVal >= totalTTC) return 'paid';
-            if (versementVal > 0 && versementVal < totalTTC) return 'partial';
-            if (mode === 'Espèces' && versementVal === 0 && !existingStatus) return 'paid';
-            return existingStatus || 'unpaid';
-        }
-
+        // ================= حفظ الوثيقة والسجل =================
         function saveCurrentInvoice() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const invoiceNum = document.getElementById('invoiceNum').value.trim();
-            if (!clientName || clientName === '/' || !invoiceItems.length) {
-                alert('أدخل اسم العميل وأضف سلعة واحدة على الأقل.');
+            const num = document.getElementById('invoiceNum').value.trim();
+            if (!num) {
+                alert('يرجى إدخال رقم الوثيقة.');
                 return;
             }
+            const client = document.getElementById('clientName').value.trim() || 'Client';
+            const date = document.getElementById('invoiceDate').value;
 
-            let idx = -1;
-            if (editingDocId) {
-                idx = savedInvoices.findIndex(i => i.id === editingDocId);
-            }
-            if (idx === -1) {
-                idx = savedInvoices.findIndex(i => i.num === invoiceNum && (i.docType || (i.isProforma ? 'proforma' : 'facture')) === docType);
-            }
+            const isBL = isNoPriceDoc();
+            const remiseVal = parseFloat(document.getElementById('remiseInput').value) || 0;
+            const totalVal = isBL ? 0 : currentTotalTTC;
+            const netVal = isBL ? 0 : currentNetAPayer;
 
-            if (idx !== -1 && editingDocId !== savedInvoices[idx].id) {
-                if (!confirm(`الوثيقة رقم (${invoiceNum}) موجودة مسبقاً في السجل. هل تريد الكتابة فوقها؟`)) {
-                    return;
-                }
+            let initialStatus = 'unpaid';
+            if (isBL) {
+                initialStatus = 'pending';
+            } else if (totalVal > 0 && remiseVal >= totalVal) {
+                initialStatus = 'paid';
+            } else if (remiseVal > 0 && remiseVal < totalVal) {
+                initialStatus = 'partial';
             }
 
             saveCurrentClientProfile(false);
 
-            const seq = extractSeqFromNum(invoiceNum);
-            if (seq > (docCounters[docType] || 0)) {
-                docCounters[docType] = seq;
-                saveDocCounters();
-            }
+            const itemsSnapshot = invoiceItems.map(i => ({ ...i }));
 
-            const versementVal = parseFloat(document.getElementById('remiseInput').value) || 0;
-            const prevStatus = idx !== -1 ? savedInvoices[idx].status : null;
-
-            const newInv = {
-                id: idx !== -1 ? savedInvoices[idx].id : (editingDocId || Date.now()),
-                num: invoiceNum,
-                date: document.getElementById('invoiceDate').value,
+            const docRecord = {
+                id: editingDocId || (Date.now() + Math.random()),
+                docType,
+                isProforma: docType === 'proforma',
+                num,
+                date,
                 orderRefNum: document.getElementById('orderRefNum').value.trim(),
                 orderRefDate: document.getElementById('orderRefDate').value.trim(),
-                client: clientName,
-                clientAddress: document.getElementById('clientAddress').value,
-                clientNif: document.getElementById('clientNif').value,
-                clientAi: document.getElementById('clientAi').value,
-                clientRc: document.getElementById('clientRc').value,
-                clientPhone: document.getElementById('clientPhone').value,
-                clientEmail: document.getElementById('clientEmail').value,
-                notes: document.getElementById('invoiceNotes').value,
-                amountInWords: document.getElementById('amountInWords').value,
+                client,
+                clientAddress: document.getElementById('clientAddress').value.trim(),
+                clientNif: document.getElementById('clientNif').value.trim(),
+                clientAi: document.getElementById('clientAi').value.trim(),
+                clientRc: document.getElementById('clientRc').value.trim(),
+                clientPhone: document.getElementById('clientPhone').value.trim(),
+                clientEmail: document.getElementById('clientEmail').value.trim(),
+                total: totalVal,
+                netAPayer: netVal,
+                remiseVal,
+                paymentHistory: paymentHistory.map(p => ({ ...p })),
                 paymentMode: document.getElementById('paymentModeSelect').value,
-                total: currentTotalTTC,
-                netAPayer: currentNetAPayer,
-                profit: currentTotalProfit,
-                status: derivePaymentStatus(prevStatus, currentTotalTTC, versementVal),
-                currency: currentCurrency,
-                docType: docType,
-                isProforma: docType === 'proforma',
-                rowDensity: document.getElementById('rowDensitySelect').value,
-                showUnitCol: showUnitCol,
-                tvaActive: document.getElementById('toggleTva').checked,
-                tvaRate: parseFloat(document.getElementById('tvaInput').value) || 0,
+                timbreVal: parseFloat(document.getElementById('timbreInput').value) || 0,
                 priceHelperLabel: document.getElementById('priceHelperLabel').value,
                 priceHelperVal: parseFloat(document.getElementById('priceHelperInput').value) || 0,
-                timbreActive: document.getElementById('chkToggleTimbre').checked,
-                timbreVal: parseFloat(document.getElementById('timbreInput').value) || 0,
-                remiseVal: versementVal,
-                extraCharges: [...extraCharges],
-                paymentHistory: [...paymentHistory],
-                itemsSnapshot: [...invoiceItems]
+                tvaActive: document.getElementById('toggleTva').checked,
+                tvaRate: parseFloat(document.getElementById('tvaInput').value) || 0,
+                notes: document.getElementById('invoiceNotes').value,
+                amountInWords: document.getElementById('amountInWords').value,
+                extraCharges: extraCharges.map(c => ({ ...c })),
+                itemsSnapshot,
+                currency: currentCurrency,
+                profit: isBL ? 0 : currentTotalProfit
             };
 
-            if (idx !== -1) {
-                savedInvoices[idx] = newInv;
+            if (editingDocId) {
+                const idx = savedInvoices.findIndex(i => i.id === editingDocId);
+                if (idx !== -1) {
+                    const oldRec = savedInvoices[idx];
+                    if (syncStockOnSave && (oldRec.docType === 'facture' || oldRec.docType === 'bl')) {
+                        applyStockDeltaForItems(oldRec.itemsSnapshot, +1);
+                    }
+                    docRecord.status = oldRec.status || initialStatus;
+                    savedInvoices[idx] = docRecord;
+                } else {
+                    docRecord.status = initialStatus;
+                    savedInvoices.unshift(docRecord);
+                }
             } else {
-                savedInvoices.push(newInv);
+                docRecord.status = initialStatus;
+                savedInvoices.unshift(docRecord);
+
+                const seq = extractSeqFromNum(num);
+                if (seq > (docCounters[docType] || 0)) {
+                    docCounters[docType] = seq;
+                    saveDocCounters();
+                }
             }
-            editingDocId = newInv.id;
+
+            if (syncStockOnSave && (docType === 'facture' || docType === 'bl')) {
+                applyStockDeltaForItems(itemsSnapshot, -1);
+            }
 
             localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
-            const savesCount = parseInt(localStorage.getItem('dafis_saves_since_backup') || '0', 10) + 1;
-            localStorage.setItem('dafis_saves_since_backup', String(savesCount));
+
+            const prevSaves = parseInt(localStorage.getItem('dafis_saves_since_backup') || '0', 10);
+            localStorage.setItem('dafis_saves_since_backup', String(prevSaves + 1));
             checkBackupReminder();
-            saveDraft();
-            alert('✅ Document sauvegardé !');
-        }
 
-        function loadInvoiceForEditing(id) {
-            const inv = savedInvoices.find(i => i.id === id);
-            if (!inv) return;
-            docType = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-            editingDocId = inv.id;
-
-            document.getElementById('invoiceNum').value = inv.num;
-            docNumDrafts[docType] = inv.num;
-            document.getElementById('invoiceDate').value = inv.date;
-            document.getElementById('orderRefNum').value = inv.orderRefNum || '';
-            document.getElementById('orderRefDate').value = inv.orderRefDate || '';
-            document.getElementById('clientName').value = inv.client;
-            document.getElementById('clientAddress').value = inv.clientAddress || '';
-            document.getElementById('clientNif').value = inv.clientNif || '';
-            document.getElementById('clientAi').value = inv.clientAi || '';
-            document.getElementById('clientRc').value = inv.clientRc || '';
-            document.getElementById('clientPhone').value = inv.clientPhone || '';
-            document.getElementById('clientEmail').value = inv.clientEmail || '';
-            document.getElementById('invoiceNotes').value = inv.notes !== undefined ? inv.notes : (DEFAULT_NOTES[docType] || DEFAULT_NOTES.facture);
-            document.getElementById('amountInWords').value = inv.amountInWords || '';
-            wordsManuallyEdited = !!(inv.amountInWords && inv.amountInWords.trim());
-            if (inv.paymentMode) document.getElementById('paymentModeSelect').value = inv.paymentMode;
-            if (inv.priceHelperLabel !== undefined) document.getElementById('priceHelperLabel').value = inv.priceHelperLabel;
-            document.getElementById('priceHelperInput').value = inv.priceHelperVal !== undefined ? inv.priceHelperVal : 0;
-            if (typeof inv.timbreActive === 'boolean') document.getElementById('chkToggleTimbre').checked = inv.timbreActive;
-            document.getElementById('timbreInput').value = inv.timbreVal !== undefined ? inv.timbreVal : 0;
-            document.getElementById('remiseInput').value = inv.remiseVal !== undefined ? inv.remiseVal : 0;
-            paymentHistory = Array.isArray(inv.paymentHistory) ? [...inv.paymentHistory] : [];
-
-            if (inv.rowDensity) {
-                document.getElementById('rowDensitySelect').value = inv.rowDensity;
-                updateRowDensity(false);
-            }
-            if (typeof inv.showUnitCol === 'boolean') {
-                showUnitCol = inv.showUnitCol;
-                document.getElementById('chkToggleUnit').checked = inv.showUnitCol;
-            }
-
-            applyDocTypeUI();
-            applyAllSectionToggles();
-
-            document.getElementById('toggleTva').checked = inv.tvaActive !== undefined ? inv.tvaActive : true;
-            document.getElementById('tvaInput').value = inv.tvaRate !== undefined ? inv.tvaRate : 0;
-            if (inv.currency) { currentCurrency = inv.currency; document.getElementById('currencySelect').value = inv.currency; updateCurrency(false); }
-            extraCharges = inv.extraCharges ? [...inv.extraCharges] : [];
-            invoiceItems = inv.itemsSnapshot.map(i => ({ ...i, unit: i.unit || 'U', purchasePrice: i.purchasePrice || 0 }));
-            dismissPriceSyncBanner();
-            syncInvoiceData(); renderInvoiceTable(); renderExtraCharges(); calculateTotals(); generateQR();
-            saveDraft();
-            toggleHistory(false);
-        }
-
-        function convertDocToFacture(id) {
-            const inv = savedInvoices.find(i => i.id === id);
-            if (!inv) return;
-            const srcType = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-            const labelMap = {
-                proforma: 'Facture Proforma',
-                bl: 'Bon de Livraison',
-                attachement: 'Attachement'
-            };
-            const srcLabel = labelMap[srcType] || 'Document';
-
-            inv.convertedToFacture = true;
-            localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
-
-            loadInvoiceForEditing(id);
             editingDocId = null;
-            docType = 'facture';
-            const nextFacNum = getNextDocNumber('facture');
-            document.getElementById('invoiceNum').value = nextFacNum;
-            docNumDrafts.facture = nextFacNum;
-            document.getElementById('invoiceDate').value = new Date().toLocaleDateString('fr-FR');
-
-            const refLine = `Suivant ${srcLabel} N° ${inv.num} du ${inv.date}.`;
-            const curNote = document.getElementById('invoiceNotes').value.trim();
-            document.getElementById('invoiceNotes').value = curNote ? `${refLine}\n${curNote}` : refLine;
-
-            applyDocTypeUI();
-            applyAllSectionToggles();
-            renderInvoiceTable();
-            renderExtraCharges();
-            calculateTotals();
+            docNumDrafts[docType] = null;
+            clearDraft();
+            document.getElementById('invoiceNum').value = getNextDocNumber(docType);
+            docNumDrafts[docType] = document.getElementById('invoiceNum').value;
             generateQR();
-            saveDraft();
-            alert(`✅ تم تحويل الوثيقة إلى فاتورة رسمية (${nextFacNum}) وتم وسم الوثيقة الأصلية كـ (Facturée).`);
+
+            if (!document.getElementById('historyModal').classList.contains('hidden')) renderHistoryTable();
+            alert('✅ تم حفظ الوثيقة في السجل بنجاح وتم تجهيز الرقم التالي!');
         }
 
         function toggleHistory(show) {
@@ -3693,70 +4077,123 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
         }
 
         const STATUS_CONFIG = {
-            paid:      { label: 'Payée',      cls: 'status-paid' },
-            partial:   { label: 'Partielle',  cls: 'status-partial' },
-            unpaid:    { label: 'Non payée',  cls: 'status-unpaid' },
-            pending:   { label: 'En attente', cls: 'status-pending' },
-            cancelled: { label: 'Annulée',    cls: 'status-cancelled' },
+            paid: { label: 'Payée', cls: 'status-paid' },
+            partial: { label: 'Partielle', cls: 'status-partial' },
+            unpaid: { label: 'Non payée', cls: 'status-unpaid' },
+            pending: { label: 'En attente', cls: 'status-pending' },
+            cancelled: { label: 'Annulée', cls: 'status-cancelled' }
+        };
+
+        const DOC_TYPE_LABELS = {
+            facture: { text: 'FACTURE', cls: 'bg-red-100 text-red-800' },
+            proforma: { text: 'PROFORMA', cls: 'bg-amber-100 text-amber-800' },
+            bl: { text: 'BON DE LIVRAISON', cls: 'bg-emerald-100 text-emerald-800' },
+            attachement: { text: 'ATTACHEMENT', cls: 'bg-cyan-100 text-cyan-800' }
         };
 
         function parseFrenchDateToComparable(dStr) {
             if (!dStr) return '';
-            if (dStr.includes('/')) {
-                const parts = dStr.split('/');
-                if (parts.length === 3) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                }
+            const clean = String(dStr).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+            const parts = clean.split('/');
+            if (parts.length === 3) {
+                const d = parts[0].padStart(2, '0');
+                const m = parts[1].padStart(2, '0');
+                const y = parts[2];
+                return `${y}-${m}-${d}`;
             }
-            return dStr;
+            return clean;
         }
 
         function getFilteredHistoryList() {
-            const search = (document.getElementById('historySearch').value || '').toLowerCase();
-            const dFrom = document.getElementById('historyDateFrom').value || '';
-            const dTo = document.getElementById('historyDateTo').value || '';
-            const fType = document.getElementById('historyTypeFilter').value;
-            const fStat = document.getElementById('historyStatusFilter').value;
+            const q = (document.getElementById('historySearch')?.value || '').toLowerCase();
+            const typeF = document.getElementById('historyTypeFilter')?.value || '';
+            const stF = document.getElementById('historyStatusFilter')?.value || '';
+            const dFrom = document.getElementById('historyDateFrom')?.value || '';
+            const dTo = document.getElementById('historyDateTo')?.value || '';
 
-            return [...savedInvoices].reverse().filter(inv => {
+            return savedInvoices.filter(inv => {
                 const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-                const matchSearch = !search || inv.num.toLowerCase().includes(search) || inv.client.toLowerCase().includes(search);
-                const matchType = !fType || t === fType;
-                const matchStat = !fStat || inv.status === fStat;
-                const isoDate = parseFrenchDateToComparable(inv.date);
-                const matchFrom = !dFrom || (isoDate && isoDate >= dFrom);
-                const matchTo = !dTo || (isoDate && isoDate <= dTo);
-                return matchSearch && matchType && matchStat && matchFrom && matchTo;
+                const matchSearch = !q ||
+                    (inv.num && inv.num.toLowerCase().includes(q)) ||
+                    (inv.client && inv.client.toLowerCase().includes(q));
+                const matchType = !typeF || t === typeF;
+                const matchStatus = !stF || inv.status === stF;
+                const cmpDate = parseFrenchDateToComparable(inv.date);
+                const matchFrom = !dFrom || (cmpDate && cmpDate >= dFrom);
+                const matchTo = !dTo || (cmpDate && cmpDate <= dTo);
+                return matchSearch && matchType && matchStatus && matchFrom && matchTo;
             });
         }
 
-        function exportInvoicesCSV() {
-            const rows = getFilteredHistoryList();
-            if (!rows.length) {
-                alert('لا توجد وثائق لتصديرها.');
+        function toggleSelectHistoryId(id, checked) {
+            if (checked) selectedHistoryIds.add(id);
+            else selectedHistoryIds.delete(id);
+            updateSelectedHistoryCount();
+        }
+
+        function toggleSelectAllHistory(checked) {
+            const list = getFilteredHistoryList();
+            list.forEach(inv => {
+                if (checked) selectedHistoryIds.add(inv.id);
+                else selectedHistoryIds.delete(inv.id);
+            });
+            renderHistoryTable();
+        }
+
+        function updateSelectedHistoryCount() {
+            const el = document.getElementById('selectedHistoryCount');
+            if (el) el.textContent = selectedHistoryIds.size;
+        }
+
+        function bulkUpdateHistoryStatus(newStatus) {
+            if (!selectedHistoryIds.size) {
+                alert('يرجى تحديد وثيقة واحدة على الأقل أولاً.');
                 return;
             }
-            const headers = ['N° Doc', 'Type', 'Date', 'Client', 'Réf BC', 'Total TTC', 'Versé', 'Statut', 'Devise'];
-            const csvLines = [headers.join(';')];
-            rows.forEach(inv => {
-                const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-                const line = [
-                    inv.num,
-                    t.toUpperCase(),
-                    inv.date,
-                    `"${String(inv.client || '').replace(/"/g, '""')}"`,
-                    `"${String(inv.orderRefNum || '').replace(/"/g, '""')}"`,
+            savedInvoices.forEach(inv => {
+                if (selectedHistoryIds.has(inv.id)) {
+                    inv.status = newStatus;
+                }
+            });
+            localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
+            renderHistoryTable();
+        }
+
+        function exportInvoicesCSV(onlySelected = false) {
+            const sourceList = onlySelected
+                ? savedInvoices.filter(inv => selectedHistoryIds.has(inv.id))
+                : getFilteredHistoryList();
+
+            if (!sourceList.length) {
+                alert('لا توجد وثائق لتصديرها إلى CSV.');
+                return;
+            }
+
+            const headers = ['Num', 'Type', 'Date', 'Client', 'OrderRef', 'TotalTTC', 'Versement', 'Currency', 'Status'];
+            const rows = sourceList.map(inv => {
+                const t = (inv.docType || (inv.isProforma ? 'proforma' : 'facture')).toUpperCase();
+                return [
+                    inv.num || '',
+                    t,
+                    inv.date || '',
+                    inv.client || '',
+                    inv.orderRefNum || '',
                     inv.total || 0,
                     inv.remiseVal || 0,
-                    inv.status || 'unpaid',
-                    inv.currency || 'DA'
+                    inv.currency || 'DA',
+                    inv.status || ''
                 ];
-                csvLines.push(line.join(';'));
             });
-            const blob = new Blob(['\ufeff' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+            const csvContent = [headers, ...rows]
+                .map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(';'))
+                .join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `dafis_journal_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `dafis_documents_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
         }
 
@@ -3764,316 +4201,425 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
             const tbody = document.getElementById('historyTableBody');
             tbody.innerHTML = '';
 
-            let totalRev = 0, totalProfitPaid = 0, paid = 0, unpaid = 0;
-            let cntFac = 0, cntPro = 0, cntBL = 0, cntAtt = 0;
+            let totalRev = 0, paidCount = 0, unpaidCount = 0, totalProfitPaid = 0;
+            let cntFac = 0, cntPro = 0, cntBl = 0, cntAtt = 0;
 
             savedInvoices.forEach(inv => {
                 const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
+                if (t === 'facture') cntFac++;
+                else if (t === 'proforma') cntPro++;
+                else if (t === 'bl') cntBl++;
+                else if (t === 'attachement') cntAtt++;
+
                 const invProf = inv.profit !== undefined
-                    ? inv.profit
+                    ? Number(inv.profit) || 0
                     : (inv.itemsSnapshot || []).reduce((s, it) => s + (it.qty * ((it.price || 0) - (it.purchasePrice || 0))), 0);
 
-                if (t === 'facture') {
-                    cntFac++;
+                if (t === 'facture' && inv.status !== 'cancelled') {
+                    const tot = Number(inv.total) || 0;
+                    const paidAmt = inv.status === 'paid' ? tot : Math.min(tot, Number(inv.remiseVal) || 0);
+                    totalRev += paidAmt;
                     if (inv.status === 'paid') {
-                        totalRev += inv.total;
+                        paidCount++;
                         totalProfitPaid += invProf;
-                        paid++;
-                    } else if (inv.status === 'partial') {
-                        totalRev += (Number(inv.remiseVal) || 0);
+                    } else {
+                        unpaidCount++;
                     }
-                    if (inv.status === 'unpaid' || inv.status === 'partial') unpaid++;
-                } else if (t === 'proforma') {
-                    cntPro++;
-                } else if (t === 'bl') {
-                    cntBL++;
-                } else if (t === 'attachement') {
-                    cntAtt++;
                 }
             });
 
-            const list = getFilteredHistoryList();
-            const histColSpan = isAdmin ? 8 : 7;
+            const filtered = getFilteredHistoryList();
 
-            if (!list.length) {
-                tbody.innerHTML = `<tr><td colspan="${histColSpan}" class="py-6 text-center text-gray-400 font-bold text-sm">Aucun document trouvé.</td></tr>`;
+            if (!filtered.length) {
+                const emptyCols = isAdmin ? 9 : 8;
+                tbody.innerHTML = `<tr><td colspan="${emptyCols}" class="py-6 text-center text-gray-400 italic">Aucun document trouvé.</td></tr>`;
             } else {
-                list.forEach(inv => {
+                filtered.forEach(inv => {
+                    const t = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
+                    const dCfg = DOC_TYPE_LABELS[t] || DOC_TYPE_LABELS.facture;
                     const sc = STATUS_CONFIG[inv.status] || STATUS_CONFIG.unpaid;
-                    const invType = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
-                    const convertedBadge = inv.convertedToFacture
-                        ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold mr-1">Facturée</span>`
-                        : '';
-                    const convertBtnHtml = invType !== 'facture'
-                        ? `<button onclick="convertDocToFacture(${inv.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-900 px-2 py-1 rounded font-bold text-[11px] cursor-pointer mr-1" title="تحويل إلى فاتورة رسمية">→ Facture</button>`
-                        : '';
-                    const deleteBtnHtml = isAdmin ? `<button onclick="deleteInv(${inv.id})" class="text-red-600 hover:bg-red-100 p-1.5 rounded cursor-pointer" title="حذف"><i class="fas fa-trash"></i></button>` : '';
-
-                    let typeTag = '<span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">FACTURE</span>';
-                    if (invType === 'proforma') {
-                        typeTag = '<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">PROFORMA</span>';
-                    } else if (invType === 'bl') {
-                        typeTag = '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">BON LIVRAISON</span>';
-                    } else if (invType === 'attachement') {
-                        typeTag = '<span class="text-[10px] bg-cyan-100 text-cyan-800 px-1.5 py-0.5 rounded font-bold">ATTACHEMENT</span>';
-                    }
-
-                    const amountDisplay = isNoPriceDoc(invType) ? '—' : `${inv.total.toLocaleString('fr-FR')} ${inv.currency || 'DA'}`;
+                    const isNoPrice = (t === 'bl' || t === 'attachement');
                     const invProf = inv.profit !== undefined
-                        ? inv.profit
+                        ? Number(inv.profit) || 0
                         : (inv.itemsSnapshot || []).reduce((s, it) => s + (it.qty * ((it.price || 0) - (it.purchasePrice || 0))), 0);
+
                     const profitCellHtml = isAdmin
-                        ? `<td class="py-3 px-4 font-black text-right ${isNoPriceDoc(invType) ? 'text-gray-400' : (invProf >= 0 ? 'text-emerald-600' : 'text-red-500')}">${isNoPriceDoc(invType) ? '—' : (invProf >= 0 ? '+' : '') + invProf.toLocaleString('fr-FR') + ' ' + (inv.currency || 'DA')}</td>`
+                        ? `<td class="py-3 px-4 text-right font-black ${invProf >= 0 ? 'text-emerald-600' : 'text-red-500'}">${isNoPrice ? '—' : `${invProf >= 0 ? '+' : ''}${invProf.toLocaleString('fr-FR')} ${escapeHtml(inv.currency || 'DA')}`}</td>`
                         : '';
 
-                    const nonFactureBadge = invType === 'proforma'
-                        ? 'Devis / Proforma'
-                        : (invType === 'attachement' ? 'Attachement' : 'Livré');
-                    const statusControl = invType === 'facture'
-                        ? `<select onchange="updateInvStatus(${inv.id},this.value)" class="outline-none rounded-full px-3 py-1 font-bold text-xs ${sc.cls} cursor-pointer">
-                                <option value="paid" ${inv.status === 'paid' ? 'selected' : ''}>Payée</option>
-                                <option value="partial" ${inv.status === 'partial' ? 'selected' : ''}>Partielle</option>
-                                <option value="unpaid" ${inv.status === 'unpaid' ? 'selected' : ''}>Non payée</option>
-                                <option value="pending" ${inv.status === 'pending' ? 'selected' : ''}>En attente</option>
-                                <option value="cancelled" ${inv.status === 'cancelled' ? 'selected' : ''}>Annulée</option>
-                           </select>`
-                        : `<span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">${nonFactureBadge}</span>`;
+                    const isChecked = selectedHistoryIds.has(inv.id) ? 'checked' : '';
 
                     tbody.innerHTML += `
                         <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="py-3 px-3 text-center"><input type="checkbox" ${isChecked} onchange="toggleSelectHistoryId(${inv.id}, this.checked)" class="cursor-pointer"></td>
                             <td class="py-3 px-4 font-bold text-gray-900">${escapeHtml(inv.num)}</td>
-                            <td class="py-3 px-4">${typeTag} ${convertedBadge}</td>
-                            <td class="py-3 px-4 text-gray-600 text-sm">${escapeHtml(inv.date)}</td>
-                            <td class="py-3 px-4 font-bold text-sm">${escapeHtml(inv.client)}</td>
-                            <td class="py-3 px-4 font-black text-right text-red-600">${amountDisplay}</td>
+                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-black ${dCfg.cls}">${dCfg.text}</span></td>
+                            <td class="py-3 px-4 text-gray-700">${escapeHtml(inv.date)}</td>
+                            <td class="py-3 px-4 font-bold text-gray-800">${escapeHtml(inv.client)}</td>
+                            <td class="py-3 px-4 text-right font-black text-gray-900">${isNoPrice ? '<span class="text-gray-400 italic text-xs">Sans prix</span>' : `${Number(inv.total).toLocaleString('fr-FR')} ${escapeHtml(inv.currency || 'DA')}`}</td>
                             ${profitCellHtml}
-                            <td class="py-3 px-4 text-center">${statusControl}</td>
+                            <td class="py-3 px-4 text-center">
+                                <select onchange="changeInvoiceStatus(${inv.id},this.value)" class="px-2 py-1 rounded-full text-xs font-bold cursor-pointer ${sc.cls} outline-none">
+                                    <option value="paid" ${inv.status === 'paid' ? 'selected' : ''}>Payée</option>
+                                    <option value="partial" ${inv.status === 'partial' ? 'selected' : ''}>Partielle</option>
+                                    <option value="unpaid" ${inv.status === 'unpaid' ? 'selected' : ''}>Non payée</option>
+                                    <option value="pending" ${inv.status === 'pending' ? 'selected' : ''}>En attente</option>
+                                    <option value="cancelled" ${inv.status === 'cancelled' ? 'selected' : ''}>Annulée</option>
+                                </select>
+                            </td>
                             <td class="py-3 px-4 text-center whitespace-nowrap">
-                                ${convertBtnHtml}
-                                <button onclick="loadInvoiceForEditing(${inv.id})" class="text-teal-600 hover:bg-teal-100 p-1.5 rounded cursor-pointer" title="تحميل / تعديل"><i class="fas fa-folder-open"></i></button>
-                                ${deleteBtnHtml}
+                                <button onclick="loadInvoiceFromHistory(${inv.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer" title="فتح الوثيقة للتعديل"><i class="fas fa-folder-open"></i> فتح</button>
+                                <button onclick="deleteInvoice(${inv.id})" class="text-red-500 hover:bg-red-100 p-1.5 rounded cursor-pointer" title="حذف"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>`;
                 });
             }
 
             document.getElementById('statTotalInvoices').innerText = savedInvoices.length;
-            document.getElementById('statDocBreakdown').innerText = `${cntFac} فاتورة | ${cntPro} أولية | ${cntBL} تسليم | ${cntAtt} Attachement`;
-            document.getElementById('statPaid').innerText = paid;
-            document.getElementById('statUnpaid').innerText = unpaid;
-            document.getElementById('statTotalRevenue').innerText = totalRev.toLocaleString('fr-FR') + ' DA';
-            const statProfEl = document.getElementById('statTotalProfit');
-            if (statProfEl) statProfEl.innerText = `${totalProfitPaid >= 0 ? '+' : ''}${totalProfitPaid.toLocaleString('fr-FR')} DA`;
+            const bd = document.getElementById('statDocBreakdown');
+            if (bd) bd.innerText = `FAC:${cntFac} | PRO:${cntPro} | BL:${cntBl} | ATT:${cntAtt}`;
+            document.getElementById('statPaid').innerText = paidCount;
+            document.getElementById('statUnpaid').innerText = unpaidCount;
+            document.getElementById('statTotalRevenue').innerText = `${totalRev.toLocaleString('fr-FR')} DA`;
+            const profEl = document.getElementById('statTotalProfit');
+            if (profEl) profEl.innerText = `${totalProfitPaid >= 0 ? '+' : ''}${totalProfitPaid.toLocaleString('fr-FR')} DA`;
+            updateSelectedHistoryCount();
         }
 
-        function updateInvStatus(id, stat) {
+        function changeInvoiceStatus(id, st) {
             const inv = savedInvoices.find(i => i.id === id);
             if (inv) {
-                inv.status = stat;
+                inv.status = st;
                 localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
                 renderHistoryTable();
             }
         }
 
-        function deleteInv(id) {
-            if (!confirm('حذف الوثيقة نهائياً؟')) return;
+        function loadInvoiceFromHistory(id) {
+            const inv = savedInvoices.find(i => i.id === id);
+            if (!inv) return;
+
+            editingDocId = inv.id;
+            docType = inv.docType || (inv.isProforma ? 'proforma' : 'facture');
+
+            document.getElementById('invoiceNum').value = inv.num;
+            document.getElementById('invoiceDate').value = inv.date;
+            docNumDrafts[docType] = inv.num;
+
+            document.getElementById('orderRefNum').value = inv.orderRefNum || '';
+            document.getElementById('orderRefDate').value = inv.orderRefDate || '';
+
+            document.getElementById('clientName').value = inv.client;
+            document.getElementById('clientAddress').value = inv.clientAddress || '';
+            document.getElementById('clientNif').value = inv.clientNif || '';
+            document.getElementById('clientAi').value = inv.clientAi || '';
+            document.getElementById('clientRc').value = inv.clientRc || '';
+            document.getElementById('clientPhone').value = inv.clientPhone || '';
+            document.getElementById('clientEmail').value = inv.clientEmail || '';
+
+            if (inv.currency) {
+                currentCurrency = inv.currency;
+                document.getElementById('currencySelect').value = inv.currency;
+                document.querySelectorAll('.currency-label').forEach(el => el.textContent = currentCurrency);
+                document.getElementById('thCurrency').textContent = currentCurrency;
+            }
+
+            if (inv.paymentMode) document.getElementById('paymentModeSelect').value = inv.paymentMode;
+            document.getElementById('timbreInput').value = inv.timbreVal || 0;
+            if (inv.priceHelperLabel) document.getElementById('priceHelperLabel').value = inv.priceHelperLabel;
+            document.getElementById('priceHelperInput').value = inv.priceHelperVal || 0;
+            document.getElementById('remiseInput').value = inv.remiseVal || 0;
+            paymentHistory = Array.isArray(inv.paymentHistory) ? inv.paymentHistory.map(p => ({ ...p })) : [];
+
+            if (typeof inv.tvaActive === 'boolean') document.getElementById('toggleTva').checked = inv.tvaActive;
+            if (inv.tvaRate !== undefined) document.getElementById('tvaInput').value = inv.tvaRate;
+
+            document.getElementById('invoiceNotes').value = inv.notes || DEFAULT_NOTES[docType] || DEFAULT_NOTES.facture;
+            document.getElementById('amountInWords').value = inv.amountInWords || '';
+            wordsManuallyEdited = !!(inv.amountInWords && inv.amountInWords.trim());
+
+            extraCharges = Array.isArray(inv.extraCharges) ? inv.extraCharges.map(c => ({ ...c })) : [];
+            invoiceItems = (inv.itemsSnapshot || []).map(i => ({ ...i, id: Date.now() + Math.random() }));
+
+            dismissPriceSyncBanner();
+            applyDocTypeUI();
+            applyAllSectionToggles();
+            renderInvoiceTable();
+            renderExtraCharges();
+            generateQR();
+            saveDraft();
+            toggleHistory(false);
+        }
+
+        function deleteInvoice(id) {
+            if (!confirm('حذف هذه الوثيقة؟')) return;
+            selectedHistoryIds.delete(id);
             savedInvoices = savedInvoices.filter(i => i.id !== id);
             localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
             renderHistoryTable();
         }
 
-        // ================= الكتالوج =================
+        // ================= الكتالوج والمخزون =================
         function toggleCatalog(show) {
             const m = document.getElementById('catalogModal');
-            if (show) {
-                inlineEditId = null;
-                document.getElementById('catalogReverseSyncBanner').classList.add('hidden');
-                const searchInput = document.getElementById('catalogSearchInput');
-                if (searchInput) searchInput.value = '';
-                renderCatalog();
-                m.classList.remove('hidden');
-            } else {
-                m.classList.add('hidden');
-            }
-        }
-
-        function sortCatalog(by) {
-            if (by === 'name') {
-                catalogItems.sort((a, b) => a.name.localeCompare(b.name));
-            } else if (by === 'purchase') {
-                catalogItems.sort((a, b) => (a.purchasePrice || 0) - (b.purchasePrice || 0));
-            } else if (by === 'price') {
-                catalogItems.sort((a, b) => (a.price || 0) - (b.price || 0));
-            }
-            saveCatalog();
-            renderCatalog();
-        }
-
-        function renderCatalog() {
-            const tbody = document.getElementById('catalogTableBody');
-            const q = (document.getElementById('catalogSearchInput')?.value || '').trim().toLowerCase();
-            tbody.innerHTML = '';
-            const filtered = catalogItems.filter(item => !q || item.name.toLowerCase().includes(q));
-
-            if (!filtered.length) {
-                tbody.innerHTML = `<tr><td colspan="5" class="py-5 text-center text-gray-400 font-bold text-xs">Aucun article trouvé.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(item => {
-                const purchasePrice = item.purchasePrice || 0;
-                const sellingPrice = item.price || 0;
-                const profit = sellingPrice - purchasePrice;
-
-                if (item.id === inlineEditId) {
-                    tbody.innerHTML += `
-                        <tr class="border-b border-gray-300 bg-blue-50">
-                            <td class="py-2 px-2">
-                                <input type="text" id="inlineName_${item.id}" value="${escapeHtml(item.name)}" class="w-full border-2 border-blue-300 rounded px-2 py-1.5 text-sm font-bold bg-white focus:outline-none focus:border-blue-500">
-                            </td>
-                            ${isAdmin ? `
-                            <td class="py-2 px-2">
-                                <input type="number" id="inlinePurch_${item.id}" value="${purchasePrice}" class="w-full min-w-[80px] border-2 border-blue-300 rounded px-2 py-1.5 text-sm font-bold bg-white text-gray-600 focus:outline-none focus:border-blue-500 text-left" dir="ltr">
-                            </td>
-                            ` : ''}
-                            <td class="py-2 px-2">
-                                <input type="number" id="inlineSell_${item.id}" value="${sellingPrice}" class="w-full min-w-[80px] border-2 border-blue-300 rounded px-2 py-1.5 text-sm font-bold bg-white text-blue-700 focus:outline-none focus:border-blue-500 text-left" dir="ltr">
-                            </td>
-                            ${isAdmin ? `<td class="py-2 px-4 font-bold text-gray-400 text-xs text-center" dir="ltr">--</td>` : ''}
-                            <td class="py-2 px-2 text-center whitespace-nowrap">
-                                <button onclick="saveInlineEdit(${item.id})" class="text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded font-bold text-xs shadow-sm cursor-pointer"><i class="fas fa-check"></i></button>
-                                <button onclick="cancelInlineEdit()" class="text-white bg-gray-500 hover:bg-gray-600 px-2 py-1.5 rounded font-bold text-xs shadow-sm ml-1 cursor-pointer"><i class="fas fa-times"></i></button>
-                            </td>
-                        </tr>`;
-                } else {
-                    const safeJsName = item.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    tbody.innerHTML += `
-                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                            <td class="py-2.5 px-4 font-bold text-gray-800">${escapeHtml(item.name)}</td>
-                            ${isAdmin ? `<td class="py-2.5 px-4 font-bold text-gray-500">${purchasePrice.toLocaleString('fr-FR')}</td>` : ''}
-                            <td class="py-2.5 px-4 font-black text-blue-700">${sellingPrice.toLocaleString('fr-FR')}</td>
-                            ${isAdmin ? `<td class="py-2.5 px-4 font-black text-emerald-500" dir="ltr">+${profit.toLocaleString('fr-FR')}</td>` : ''}
-                            <td class="py-2.5 px-4 text-center whitespace-nowrap">
-                                <button onclick="addInvoiceItem('${safeJsName}',1,${sellingPrice},${purchasePrice},'U')" class="text-green-600 hover:bg-green-100 p-1.5 rounded cursor-pointer" title="إضافة للوثيقة"><i class="fas fa-plus"></i></button>
-                                <button onclick="startInlineEdit(${item.id})" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded cursor-pointer" title="تعديل"><i class="fas fa-pen"></i></button>
-                                <button onclick="deleteFromCatalog(${item.id})" class="text-red-600 hover:bg-red-100 p-1.5 rounded cursor-pointer" title="حذف"><i class="fas fa-trash"></i></button>
-                            </td>
-                        </tr>`;
-                }
-            });
-        }
-
-        function startInlineEdit(id) { inlineEditId = id; renderCatalog(); }
-        function cancelInlineEdit() { inlineEditId = null; renderCatalog(); }
-        function saveInlineEdit(id) {
-            const item = catalogItems.find(i => i.id === id);
-            if (!item) return;
-            const nameInput = document.getElementById(`inlineName_${id}`);
-            const purchInput = document.getElementById(`inlinePurch_${id}`);
-            const sellInput = document.getElementById(`inlineSell_${id}`);
-            item.name = nameInput.value.trim() || item.name;
-            if (purchInput) item.purchasePrice = parseFloat(purchInput.value) || 0;
-            item.price = parseFloat(sellInput.value) || 0;
-            saveCatalog();
-            inlineEditId = null;
-            renderCatalog();
-            renderInvoiceTable();
-            checkCatalogToInvoiceSync(item);
+            if (show) { renderCatalog(); m.classList.remove('hidden'); }
+            else m.classList.add('hidden');
         }
 
         function addNewCatalogItem() {
             const name = document.getElementById('newCatName').value.trim();
-            const purchInput = document.getElementById('newCatPurchasePrice');
-            const purchasePrice = purchInput ? (parseFloat(purchInput.value) || 0) : 0;
-            const price = parseFloat(document.getElementById('newCatPrice').value) || 0;
-            if (!name) { alert("يرجى إدخال اسم السلعة."); return; }
-            catalogItems.push({ id: Date.now(), name, purchasePrice, price });
-            saveCatalog(); renderCatalog();
+            const p = parseFloat(document.getElementById('newCatPrice').value) || 0;
+            const pp = isAdmin ? (parseFloat(document.getElementById('newCatPurchasePrice').value) || 0) : 0;
+            const stRaw = document.getElementById('newCatStock').value;
+            const stock = stRaw === '' ? null : (parseFloat(stRaw) || 0);
+
+            if (!name) {
+                alert('يرجى إدخال اسم السلعة.');
+                return;
+            }
+            const newItem = { id: Date.now(), name, purchasePrice: pp, price: p, stock };
+            catalogItems.push(newItem);
+            saveCatalog();
             document.getElementById('newCatName').value = '';
-            if (purchInput) purchInput.value = '';
             document.getElementById('newCatPrice').value = '';
+            if (document.getElementById('newCatPurchasePrice')) document.getElementById('newCatPurchasePrice').value = '';
+            document.getElementById('newCatStock').value = '';
+            renderCatalog();
         }
 
-        function deleteFromCatalog(id) {
-            if (!confirm('حذف السلعة من الكتالوج؟')) return;
-            catalogItems = catalogItems.filter(i => i.id !== id);
-            saveCatalog(); renderCatalog();
+        function sortCatalog(by) {
+            if (by === 'name') catalogItems.sort((a, b) => a.name.localeCompare(b.name));
+            else if (by === 'purchase') catalogItems.sort((a, b) => (a.purchasePrice || 0) - (b.purchasePrice || 0));
+            else if (by === 'price') catalogItems.sort((a, b) => a.price - b.price);
+            saveCatalog();
+            renderCatalog();
         }
 
-        function getDocFilePrefix() {
-            if (docType === 'proforma') return 'Facture_PROFORMA';
-            if (docType === 'bl') return 'Bon_de_Livraison';
-            if (docType === 'attachement') return 'Attachement';
-            return 'Facture';
+        function addCatalogItemToInvoiceById(catId) {
+            const c = catalogItems.find(x => x.id === catId);
+            if (!c) return;
+            addInvoiceItem(c.name, 1, c.price, c.purchasePrice || 0, 'U');
+            toggleCatalog(false);
         }
 
-        // ================= تصدير PDF آمن محلياً مع استبدال حقول الإدخال بعناصر نصية =================
-        async function downloadPDF() {
-            const container = document.getElementById('invoice-container');
-            const { jsPDF } = window.jspdf;
-            const invNum = document.getElementById('invoiceNum').value || '001';
-            const client = document.getElementById('clientName').value.trim() || 'Client';
-            const safeNum = invNum.replace(/[\\/:*?"<>|]/g, '-');
-            const safeName = (client === '/' ? 'Client' : client).replace(/[\\/:*?"<>|]/g, '_');
-            const filename = `${getDocFilePrefix()}_${safeNum}_${safeName}.pdf`;
+        function deleteCatalogItem(id) {
+            if (!confirm('حذف السلعة؟')) return;
+            catalogItems = catalogItems.filter(c => c.id !== id);
+            saveCatalog();
+            renderCatalog();
+        }
 
-            const noPrint = document.querySelectorAll('.no-print');
-            const replacements = [];
+        function startInlineEdit(id) {
+            inlineEditId = id;
+            renderCatalog();
+            setTimeout(() => {
+                const el = document.getElementById('editName-' + id);
+                if (el) el.focus();
+            }, 30);
+        }
 
-            noPrint.forEach(el => el.style.setProperty('display', 'none', 'important'));
+        function cancelInlineEdit() {
+            inlineEditId = null;
+            renderCatalog();
+        }
 
-            container.querySelectorAll('input, textarea').forEach(ctrl => {
-                if (ctrl.type === 'checkbox' || ctrl.type === 'file') return;
-                const style = window.getComputedStyle(ctrl);
-                const span = document.createElement('span');
-                const val = ctrl.value || ctrl.getAttribute('placeholder') || '';
-                span.textContent = val;
-                span.style.display = 'inline-block';
-                span.style.fontFamily = style.fontFamily;
-                span.style.fontSize = style.fontSize;
-                span.style.fontWeight = style.fontWeight;
-                span.style.fontStyle = style.fontStyle;
-                span.style.color = style.color;
-                span.style.textAlign = style.textAlign;
-                span.style.lineHeight = style.lineHeight;
-                span.style.width = style.width;
-                span.style.minWidth = style.minWidth;
-                span.style.whiteSpace = ctrl.tagName === 'TEXTAREA' ? 'pre-wrap' : 'nowrap';
-                span.style.wordBreak = 'break-word';
-                ctrl.parentNode.insertBefore(span, ctrl);
-                ctrl.style.setProperty('display', 'none', 'important');
-                replacements.push({ ctrl, span });
+        function saveInlineEdit(id) {
+            const c = catalogItems.find(x => x.id === id);
+            if (!c) return;
+            const nameEl = document.getElementById('editName-' + id);
+            const priceEl = document.getElementById('editPrice-' + id);
+            const purchEl = document.getElementById('editPurch-' + id);
+            const stockEl = document.getElementById('editStock-' + id);
+
+            const newName = (nameEl?.value || '').trim();
+            if (!newName) {
+                alert('اسم السلعة لا يمكن أن يكون فارغاً.');
+                return;
+            }
+            c.name = newName;
+            c.price = parseFloat(priceEl?.value) || 0;
+            if (isAdmin && purchEl) {
+                c.purchasePrice = parseFloat(purchEl.value) || 0;
+            }
+            if (stockEl) {
+                c.stock = stockEl.value === '' ? null : (parseFloat(stockEl.value) || 0);
+            }
+
+            saveCatalog();
+            inlineEditId = null;
+            renderCatalog();
+            checkCatalogToInvoiceSync(c);
+        }
+
+        function renderCatalog() {
+            const tbody = document.getElementById('catalogTableBody');
+            tbody.innerHTML = '';
+            const q = (document.getElementById('catalogSearchInput')?.value || '').toLowerCase();
+            const filtered = catalogItems.filter(c => !q || c.name.toLowerCase().includes(q));
+
+            if (!filtered.length) {
+                const emptyCols = isAdmin ? 6 : 4;
+                tbody.innerHTML = `<tr><td colspan="${emptyCols}" class="py-6 text-center text-gray-400 italic">Catalogue vide.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(c => {
+                const isEditing = (inlineEditId === c.id);
+                const prof = c.price - (c.purchasePrice || 0);
+                const pCls = prof >= 0 ? 'text-emerald-600' : 'text-red-500';
+                const hasStock = c.stock !== null && c.stock !== undefined && c.stock !== '';
+                const stockDisplay = hasStock
+                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-black ${Number(c.stock) <= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-900'}">${Number(c.stock).toLocaleString('fr-FR')}</span>`
+                    : `<span class="text-gray-400 text-xs">—</span>`;
+
+                if (isEditing) {
+                    const purchEditTd = isAdmin
+                        ? `<td class="py-2 px-4"><input id="editPurch-${c.id}" type="number" value="${c.purchasePrice || 0}" class="w-24 border-2 border-purple-400 rounded px-2 py-1 font-bold text-gray-800 text-xs bg-white"></td>`
+                        : '';
+                    const profEditTd = isAdmin
+                        ? `<td class="py-2 px-4 text-xs text-gray-400 italic">...</td>`
+                        : '';
+
+                    tbody.innerHTML += `
+                        <tr class="border-b border-blue-200 bg-blue-50/60">
+                            <td class="py-2 px-4"><input id="editName-${c.id}" type="text" value="${escapeHtml(c.name)}" onkeydown="if(event.key==='Enter') saveInlineEdit(${c.id}); else if(event.key==='Escape') cancelInlineEdit();" class="w-full border-2 border-blue-500 rounded px-2.5 py-1 font-bold text-gray-900 text-xs bg-white"></td>
+                            <td class="py-2 px-3 text-center"><input id="editStock-${c.id}" type="number" value="${hasStock ? c.stock : ''}" placeholder="—" class="w-16 border-2 border-amber-400 rounded px-1.5 py-1 font-bold text-gray-900 text-xs text-center bg-white"></td>
+                            ${purchEditTd}
+                            <td class="py-2 px-4"><input id="editPrice-${c.id}" type="number" value="${c.price}" onkeydown="if(event.key==='Enter') saveInlineEdit(${c.id}); else if(event.key==='Escape') cancelInlineEdit();" class="w-24 border-2 border-blue-500 rounded px-2 py-1 font-black text-blue-700 text-xs bg-white"></td>
+                            ${profEditTd}
+                            <td class="py-2 px-4 text-center whitespace-nowrap">
+                                <button onclick="saveInlineEdit(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1" title="حفظ"><i class="fas fa-check"></i> حفظ</button>
+                                <button onclick="cancelInlineEdit()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-2 py-1 rounded text-xs font-bold cursor-pointer" title="إلغاء"><i class="fas fa-times"></i></button>
+                            </td>
+                        </tr>`;
+                } else {
+                    const purchTd = isAdmin
+                        ? `<td class="py-3 px-4 font-bold text-gray-600">${(c.purchasePrice || 0).toLocaleString('fr-FR')}</td>`
+                        : '';
+                    const profTd = isAdmin
+                        ? `<td class="py-3 px-4 font-black ${pCls}">${prof >= 0 ? '+' : ''}${prof.toLocaleString('fr-FR')}</td>`
+                        : '';
+
+                    tbody.innerHTML += `
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="py-3 px-4 font-bold text-gray-800">${escapeHtml(c.name)}</td>
+                            <td class="py-3 px-3 text-center">${stockDisplay}</td>
+                            ${purchTd}
+                            <td class="py-3 px-4 font-black text-blue-600">${c.price.toLocaleString('fr-FR')}</td>
+                            ${profTd}
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <button onclick="addCatalogItemToInvoiceById(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer mr-1"><i class="fas fa-plus"></i> إضافة</button>
+                                <button onclick="startInlineEdit(${c.id})" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded cursor-pointer" title="تعديل"><i class="fas fa-pen"></i></button>
+                                <button onclick="deleteCatalogItem(${c.id})" class="text-red-500 hover:bg-red-100 p-1.5 rounded cursor-pointer" title="حذف"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>`;
+                }
             });
+        }
+
+        // ================= تصدير PDF عالي الدقة =================
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const invNum = document.getElementById('invoiceNum').value || 'Document';
+            const labelMap = {
+                facture: 'Facture',
+                proforma: 'Facture_Proforma',
+                bl: 'Bon_de_Livraison',
+                attachement: 'Attachement'
+            };
+            const fileName = `${labelMap[docType] || 'Document'}_${invNum.replace(/[\/\\:*?"<>|]/g, '-')}.pdf`;
+            const container = document.getElementById('invoice-container');
+            const pages = container.querySelectorAll('.page-a4');
+
+            window.scrollTo(0, 0);
 
             try {
-                const pages = container.querySelectorAll('.page-a4');
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 
                 for (let i = 0; i < pages.length; i++) {
                     const canvas = await html2canvas(pages[i], {
-                        scale: 2,
-                        useCORS: false,
-                        allowTaint: false,
+                        scale: 2.5,
+                        useCORS: true,
+                        allowTaint: true,
                         backgroundColor: '#ffffff',
-                        logging: false
+                        width: 794,
+                        height: 1123,
+                        windowWidth: 794,
+                        scrollX: 0,
+                        scrollY: 0,
+                        onclone: (clonedDoc) => {
+                            clonedDoc.querySelectorAll('.no-print').forEach(el => {
+                                el.style.display = 'none';
+                            });
+
+                            const clonedWrapper = clonedDoc.getElementById('invoice-container');
+                            if (clonedWrapper) clonedWrapper.style.boxShadow = 'none';
+
+                            clonedDoc.querySelectorAll('#invoiceTableBody tr').forEach(tr => {
+                                tr.style.height = 'auto';
+                            });
+                            clonedDoc.querySelectorAll('#invoiceTableBody td').forEach(td => {
+                                td.style.paddingTop = '2px';
+                                td.style.paddingBottom = '3px';
+                                td.style.lineHeight = '1.35';
+                                td.style.verticalAlign = 'middle';
+                                td.style.overflow = 'visible';
+                            });
+
+                            const fields = clonedDoc.querySelectorAll(
+                                '.page-a4 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), .page-a4 textarea, .page-a4 select'
+                            );
+                            fields.forEach(field => {
+                                const cs = clonedDoc.defaultView.getComputedStyle(field);
+                                const div = clonedDoc.createElement('div');
+
+                                let textVal = '';
+                                if (field.tagName === 'SELECT') {
+                                    textVal = field.options[field.selectedIndex]?.text || '';
+                                } else {
+                                    textVal = field.value || '';
+                                }
+
+                                div.textContent = textVal || '\u00A0';
+                                div.className = field.className;
+
+                                div.style.fontFamily = cs.fontFamily;
+                                div.style.fontSize = cs.fontSize;
+                                div.style.fontWeight = cs.fontWeight;
+                                div.style.fontStyle = cs.fontStyle;
+                                div.style.letterSpacing = cs.letterSpacing;
+                                div.style.color = cs.color;
+                                div.style.textAlign = cs.textAlign;
+                                div.style.width = field.tagName === 'TEXTAREA' ? '100%' : cs.width;
+                                div.style.flex = cs.flex;
+                                div.style.minWidth = '0';
+                                div.style.height = 'auto';
+                                div.style.minHeight = cs.height;
+                                div.style.lineHeight = '1.4';
+                                div.style.paddingTop = '1px';
+                                div.style.paddingBottom = '3px';
+                                div.style.margin = cs.margin;
+                                div.style.boxSizing = 'border-box';
+                                div.style.background = 'transparent';
+                                div.style.border = 'none';
+                                div.style.borderBottom = cs.borderBottom;
+                                div.style.overflow = 'visible';
+                                div.style.display = 'block';
+                                div.style.whiteSpace = field.tagName === 'TEXTAREA' ? 'pre-wrap' : 'nowrap';
+                                div.style.wordBreak = 'break-word';
+
+                                field.parentNode.replaceChild(div, field);
+                            });
+                        }
                     });
-                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const imgData = canvas.toDataURL('image/jpeg', 0.96);
                     if (i > 0) pdf.addPage();
-                    const pdfW = pdf.internal.pageSize.getWidth();
-                    const pdfH = pdf.internal.pageSize.getHeight();
-                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
                 }
-                pdf.save(filename);
-            } catch (e) {
-                alert('حدث خطأ أثناء إنشاء ملف PDF: ' + e.message);
-            } finally {
-                replacements.forEach(({ ctrl, span }) => {
-                    span.remove();
-                    ctrl.style.removeProperty('display');
-                });
-                noPrint.forEach(el => el.style.removeProperty('display'));
-                applyDocTypeUI();
-                applyAllSectionToggles();
+                pdf.save(fileName);
+            } catch (err) {
+                console.error(err);
+                alert('حدث خطأ أثناء إنشاء ملف PDF!');
             }
         }
     </script>
