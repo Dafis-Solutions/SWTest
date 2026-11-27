@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
@@ -93,11 +94,22 @@
             overflow-y: auto;
         }
 
+        #qrcode-maps {
+            width: 104px;
+            height: 104px;
+            min-width: 104px;
+            min-height: 104px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         #qrcode-maps img,
         #qrcode-maps canvas {
             width: 92px !important;
             height: 92px !important;
-            display: block;
+            max-width: 92px !important;
+            max-height: 92px !important;
+            display: block !important;
             image-rendering: pixelated;
         }
     </style>
@@ -2443,18 +2455,19 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
         function generateQR() {
             const el = document.getElementById('qrcode-maps');
             if (!el) return;
-            el.innerHTML = '';
 
             const includeInv = document.getElementById('chkQrIncludeInvoiceData')?.checked;
-            const mapUrl = companySettings.mapsUrl || DEFAULT_COMPANY_SETTINGS.mapsUrl;
+            const mapUrl = (companySettings.mapsUrl || DEFAULT_COMPANY_SETTINGS.mapsUrl || '').trim();
             let qrPayload = mapUrl;
 
             if (includeInv) {
+                const compName = (companySettings.name || 'DAFIS SOLUTIONS').trim();
                 const invNum = (document.getElementById('invoiceNum')?.value || '').trim();
                 const invDate = (document.getElementById('invoiceDate')?.value || '').trim();
-                const client = (document.getElementById('clientName')?.value || '-').trim().slice(0, 32);
+                const client = (document.getElementById('clientName')?.value || '-').trim().slice(0, 40);
                 const nif = (document.getElementById('clientNif')?.value || '').trim();
                 const lines = [
+                    compName,
                     `DOC: ${invNum}`,
                     `DATE: ${invDate}`,
                     `CLIENT: ${client}`
@@ -2467,34 +2480,77 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                 qrPayload = lines.join('\n');
             }
 
-            const safeUtf8 = (str) => {
+            // 1) التوليد الأساسي عبر qrcode-generator مع دعم UTF-8 الكامل وتحويله إلى صورة PNG ثابتة
+            if (typeof window.qrcode === 'function') {
                 try {
-                    return unescape(encodeURIComponent(str));
-                } catch (err) {
-                    return str;
-                }
-            };
+                    if (window.qrcode.stringToBytesFuncs && window.qrcode.stringToBytesFuncs['UTF-8']) {
+                        window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs['UTF-8'];
+                    }
+                    const qr = window.qrcode(0, 'M');
+                    qr.addData(qrPayload, 'Byte');
+                    qr.make();
 
-            try {
-                new QRCode(el, {
-                    text: safeUtf8(qrPayload),
-                    width: 184,
-                    height: 184,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: includeInv ? QRCode.CorrectLevel.L : QRCode.CorrectLevel.M
-                });
-            } catch (e) {
+                    const moduleCount = qr.getModuleCount();
+                    const quietZone = 2;
+                    const totalModules = moduleCount + quietZone * 2;
+                    const targetPx = 276;
+                    const cellSize = Math.max(2, Math.floor(targetPx / totalModules));
+                    const canvasSize = totalModules * cellSize;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasSize;
+                    canvas.height = canvasSize;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvasSize, canvasSize);
+                    ctx.fillStyle = '#000000';
+
+                    for (let r = 0; r < moduleCount; r++) {
+                        for (let c = 0; c < moduleCount; c++) {
+                            if (qr.isDark(r, c)) {
+                                ctx.fillRect((c + quietZone) * cellSize, (r + quietZone) * cellSize, cellSize, cellSize);
+                            }
+                        }
+                    }
+
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    img.alt = 'QR Code';
+                    img.style.width = '92px';
+                    img.style.height = '92px';
+                    img.style.display = 'block';
+                    el.innerHTML = '';
+                    el.appendChild(img);
+                    return;
+                } catch (err) {
+                    console.warn('qrcode-generator fallback:', err);
+                }
+            }
+
+            // 2) احتياطي عبر qrcodejs بمستوى تصحيح M (لتجنب خلل CorrectLevel.L في المكتبة)
+            if (typeof window.QRCode === 'function') {
+                el.innerHTML = '';
+                const safeUtf8 = (str) => {
+                    try { return unescape(encodeURIComponent(str)); } catch (e) { return str; }
+                };
                 try {
                     new QRCode(el, {
-                        text: safeUtf8(qrPayload.slice(0, 100)),
+                        text: safeUtf8(qrPayload),
                         width: 184,
                         height: 184,
                         colorDark: '#000000',
                         colorLight: '#ffffff',
-                        correctLevel: QRCode.CorrectLevel.L
+                        correctLevel: QRCode.CorrectLevel.M
                     });
-                } catch (e2) {}
+                    const cnv = el.querySelector('canvas');
+                    const img = el.querySelector('img');
+                    if (cnv && img) {
+                        img.src = cnv.toDataURL('image/png');
+                        cnv.remove();
+                    }
+                } catch (e2) {
+                    console.error('QR generation failed:', e2);
+                }
             }
         }
 
@@ -4519,6 +4575,11 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
 
         // ================= تصدير PDF عالي الدقة =================
         async function downloadPDF() {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+            generateQR();
+
             const { jsPDF } = window.jspdf;
             const invNum = document.getElementById('invoiceNum').value || 'Document';
             const labelMap = {
@@ -4548,6 +4609,7 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                         scrollX: 0,
                         scrollY: 0,
                         onclone: (clonedDoc) => {
+                            // 1. إخفاء العناصر غير المخصصة للطباعة وإزالة الظلال
                             clonedDoc.querySelectorAll('.no-print').forEach(el => {
                                 el.style.display = 'none';
                             });
@@ -4555,23 +4617,45 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                             const clonedWrapper = clonedDoc.getElementById('invoice-container');
                             if (clonedWrapper) clonedWrapper.style.boxShadow = 'none';
 
+                            clonedDoc.querySelectorAll('.page-a4').forEach(pg => {
+                                pg.style.overflow = 'visible';
+                            });
+
+                            // 2. تصحيح إزاحة خط الأساس في html2canvas داخل خلايا الجدول
                             clonedDoc.querySelectorAll('#invoiceTableBody tr').forEach(tr => {
                                 tr.style.height = 'auto';
                             });
                             clonedDoc.querySelectorAll('#invoiceTableBody td').forEach(td => {
-                                td.style.paddingTop = '2px';
-                                td.style.paddingBottom = '3px';
-                                td.style.lineHeight = '1.35';
+                                td.style.paddingTop = '1.5px';
+                                td.style.paddingBottom = '4.5px';
+                                td.style.lineHeight = '1.25';
                                 td.style.verticalAlign = 'middle';
                                 td.style.overflow = 'visible';
                             });
+                            clonedDoc.querySelectorAll('#invoiceTableBody td.item-total').forEach(td => {
+                                const txt = td.textContent;
+                                td.innerHTML = '';
+                                const sp = clonedDoc.createElement('span');
+                                sp.textContent = txt;
+                                sp.style.display = 'inline-block';
+                                sp.style.transform = 'translateY(-2.5px)';
+                                td.appendChild(sp);
+                            });
 
+                            // 3. رفع النصوص الثابتة داخل الأسطر المزودة بحد سفلي لمنع تلامسها مع الخط
+                            clonedDoc.querySelectorAll('#header-p1 span, #sectionOrderRef span, #sectionWords span').forEach(sp => {
+                                sp.style.display = 'inline-block';
+                                sp.style.transform = 'translateY(-2px)';
+                            });
+
+                            // 4. تحويل جميع حقول input و textarea و select إلى حاويات نصية مرفوعة فوق السطر
                             const fields = clonedDoc.querySelectorAll(
                                 '.page-a4 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), .page-a4 textarea, .page-a4 select'
                             );
                             fields.forEach(field => {
                                 const cs = clonedDoc.defaultView.getComputedStyle(field);
-                                const div = clonedDoc.createElement('div');
+                                const wrapper = clonedDoc.createElement('div');
+                                const inner = clonedDoc.createElement('span');
 
                                 let textVal = '';
                                 if (field.tagName === 'SELECT') {
@@ -4580,36 +4664,54 @@ ${companySettings.city || 'Tébessa - Algérie'}`;
                                     textVal = field.value || '';
                                 }
 
-                                div.textContent = textVal || '\u00A0';
-                                div.className = field.className;
+                                inner.textContent = textVal || '\u00A0';
+                                wrapper.className = field.className;
 
-                                div.style.fontFamily = cs.fontFamily;
-                                div.style.fontSize = cs.fontSize;
-                                div.style.fontWeight = cs.fontWeight;
-                                div.style.fontStyle = cs.fontStyle;
-                                div.style.letterSpacing = cs.letterSpacing;
-                                div.style.color = cs.color;
-                                div.style.textAlign = cs.textAlign;
-                                div.style.width = field.tagName === 'TEXTAREA' ? '100%' : cs.width;
-                                div.style.flex = cs.flex;
-                                div.style.minWidth = '0';
-                                div.style.height = 'auto';
-                                div.style.minHeight = cs.height;
-                                div.style.lineHeight = '1.4';
-                                div.style.paddingTop = '1px';
-                                div.style.paddingBottom = '3px';
-                                div.style.margin = cs.margin;
-                                div.style.boxSizing = 'border-box';
-                                div.style.background = 'transparent';
-                                div.style.border = 'none';
-                                div.style.borderBottom = cs.borderBottom;
-                                div.style.overflow = 'visible';
-                                div.style.display = 'block';
-                                div.style.whiteSpace = field.tagName === 'TEXTAREA' ? 'pre-wrap' : 'nowrap';
-                                div.style.wordBreak = 'break-word';
+                                wrapper.style.fontFamily = cs.fontFamily;
+                                wrapper.style.fontSize = cs.fontSize;
+                                wrapper.style.fontWeight = cs.fontWeight;
+                                wrapper.style.fontStyle = cs.fontStyle;
+                                wrapper.style.letterSpacing = cs.letterSpacing;
+                                wrapper.style.color = cs.color;
+                                wrapper.style.textAlign = cs.textAlign;
+                                wrapper.style.width = field.tagName === 'TEXTAREA' ? '100%' : cs.width;
+                                wrapper.style.flex = cs.flex;
+                                wrapper.style.minWidth = '0';
+                                wrapper.style.height = 'auto';
+                                wrapper.style.minHeight = cs.height;
+                                wrapper.style.paddingTop = '0px';
+                                wrapper.style.paddingBottom = '4px';
+                                wrapper.style.margin = cs.margin;
+                                wrapper.style.boxSizing = 'border-box';
+                                wrapper.style.background = 'transparent';
+                                wrapper.style.border = 'none';
+                                wrapper.style.borderBottom = cs.borderBottom;
+                                wrapper.style.overflow = 'visible';
+                                wrapper.style.display = 'flex';
+                                wrapper.style.alignItems = 'center';
 
-                                field.parentNode.replaceChild(div, field);
+                                inner.style.display = 'block';
+                                inner.style.width = '100%';
+                                inner.style.lineHeight = '1.2';
+                                inner.style.transform = 'translateY(-2.5px)';
+                                inner.style.whiteSpace = field.tagName === 'TEXTAREA' ? 'pre-wrap' : 'nowrap';
+                                inner.style.wordBreak = 'break-word';
+
+                                wrapper.appendChild(inner);
+                                field.parentNode.replaceChild(wrapper, field);
                             });
+
+                            // 5. ضمان وضوح كود QR في النسخة المصوّرة
+                            const qrBox = clonedDoc.getElementById('qrcode-maps');
+                            if (qrBox) {
+                                qrBox.style.display = 'flex';
+                                const qrImg = qrBox.querySelector('img');
+                                if (qrImg) {
+                                    qrImg.style.width = '92px';
+                                    qrImg.style.height = '92px';
+                                    qrImg.style.display = 'block';
+                                }
+                            }
                         }
                     });
                     const imgData = canvas.toDataURL('image/jpeg', 0.96);
